@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runotepad - Interactive Runbook</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="bundle.css">
+</head>
+<body>
+    <header>
+        <h1>Runotepad</h1>
+        <div class="tabs">
+            <button class="tab" data-view="editor-only">Editor</button>
+            <button class="tab active" data-view="split">Split</button>
+            <button class="tab" data-view="preview-only">Preview</button>
+        </div>
+    </header>
+
+    <div class="container" id="container">
+        <div class="editor-pane" id="editor"></div>
+        <div class="preview-pane">
+            <div class="preview-content" id="preview"></div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="connection-status">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+        <span id="cursorPos">Ln 1, Col 1</span>
+    </div>
+
+    <script src="bundle.js"></script>
+</body>
+</html>
