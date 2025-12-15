@@ -4,6 +4,7 @@ import { wsConnection } from './websocket';
 import { createEditor } from './editor';
 import { initializePreview, updatePreview } from './preview';
 import { defaultContent } from './content';
+import { terminalManager } from './terminal';
 
 function initializeTabs(): void {
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -20,6 +21,16 @@ function initializeTabs(): void {
   });
 }
 
+function initializeClearSessions(): void {
+  const clearBtn = document.getElementById('clearSessions');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      logger.info('Clearing all sessions');
+      terminalManager.closeAllSessions();
+    });
+  }
+}
+
 function main(): void {
   logger.info('===========================================');
   logger.info('  Runotepad - Frontend Initializing');
@@ -33,6 +44,9 @@ function main(): void {
 
   // Initialize tabs
   initializeTabs();
+
+  // Initialize clear sessions button
+  initializeClearSessions();
 
   // Create editor
   const editorEl = document.getElementById('editor');

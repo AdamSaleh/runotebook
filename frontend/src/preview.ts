@@ -125,23 +125,17 @@ function runCodeBlock(btn: HTMLButtonElement): void {
     return;
   }
 
-  const wrapper = document.getElementById(blockIdAttr);
-  if (!wrapper) {
-    logger.error(`Block wrapper not found: ${blockIdAttr}`);
-    return;
-  }
-
   logger.info(`Running code block: ${blockIdAttr}${sessionName ? ` (session: ${sessionName})` : ''}`);
   logger.debug('Code to execute:', code);
 
-  // If this block has a named session, check if that session exists anywhere
+  // If this block has a named session, check if that session already exists
   if (sessionName) {
     const existingSessionId = terminalManager.getNamedSession(sessionName);
     if (existingSessionId) {
       logger.debug(`Reusing named session "${sessionName}": ${existingSessionId}`);
       // Send code to the existing session
       terminalManager.sendInput(existingSessionId, code + '\n');
-      // Scroll the terminal into view
+      // Scroll the terminal into view in the sessions pane
       terminalManager.scrollSessionIntoView(existingSessionId);
       btn.disabled = true;
       setTimeout(() => {
@@ -151,20 +145,8 @@ function runCodeBlock(btn: HTMLButtonElement): void {
     }
   }
 
-  // Check if terminal already exists for this specific block
-  const existingBlockSession = terminalManager.getExistingSession(wrapper);
-  if (existingBlockSession) {
-    logger.debug(`Reusing existing block session: ${existingBlockSession}`);
-    terminalManager.sendInput(existingBlockSession, code + '\n');
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.disabled = false;
-    }, 500);
-    return;
-  }
-
-  // Create new terminal (with optional session name)
-  terminalManager.createTerminalForBlock(wrapper, code, sessionName);
+  // Create new terminal in the sessions pane (with optional session name)
+  terminalManager.createTerminal(code, sessionName);
 
   btn.disabled = true;
   setTimeout(() => {

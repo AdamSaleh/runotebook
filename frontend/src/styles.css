@@ -58,14 +58,28 @@ header h1 {
     overflow: hidden;
 }
 
-.editor-pane, .preview-pane {
-    flex: 1;
+.editor-pane, .preview-pane, .sessions-pane {
     overflow: auto;
     height: 100%;
 }
 
 .editor-pane {
+    flex: 1;
     border-right: 1px solid #3c3c3c;
+}
+
+.preview-pane {
+    flex: 1;
+}
+
+.sessions-pane {
+    width: 400px;
+    min-width: 300px;
+    max-width: 500px;
+    background: #252526;
+    border-left: 1px solid #3c3c3c;
+    display: flex;
+    flex-direction: column;
 }
 
 .cm-editor {
@@ -273,8 +287,62 @@ header h1 {
     background: #f44336;
 }
 
+/* Sessions pane styles */
+.sessions-header {
+    background: #2d2d2d;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    border-bottom: 1px solid #3c3c3c;
+    flex-shrink: 0;
+}
+
+.sessions-clear {
+    background: transparent;
+    border: 1px solid #555;
+    color: #969696;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.sessions-clear:hover {
+    background: #3c3c3c;
+    color: #fff;
+}
+
+.sessions-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.sessions-empty {
+    color: #969696;
+    font-size: 13px;
+    text-align: center;
+    padding: 40px 20px;
+    line-height: 1.5;
+}
+
+/* Terminal in sessions pane */
+.sessions-pane .terminal-wrapper {
+    margin: 0 0 8px 0;
+    border: 1px solid #3c3c3c;
+}
+
+.sessions-pane .terminal-container {
+    height: 200px;
+}
+
 /* Editor only mode */
-.container.editor-only .preview-pane {
+.container.editor-only .preview-pane,
+.container.editor-only .sessions-pane {
     display: none;
 }
 
@@ -283,6 +351,19 @@ header h1 {
 }
 
 /* Preview only mode */
-.container.preview-only .editor-pane {
+.container.preview-only .editor-pane,
+.container.preview-only .sessions-pane {
     display: none;
+}
+
+/* Sessions only mode (hide editor and preview) */
+.container.sessions-only .editor-pane,
+.container.sessions-only .preview-pane {
+    display: none;
+}
+
+.container.sessions-only .sessions-pane {
+    width: 100%;
+    max-width: none;
+    border-left: none;
 }

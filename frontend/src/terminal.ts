@@ -48,6 +48,7 @@ class TerminalManager {
       case 'closed':
         logger.info(`Session closed: ${msg.session_id}`);
         this.terminals.delete(msg.session_id);
+        this.updateEmptyState();
         break;
 
       case 'error':
@@ -56,6 +57,20 @@ class TerminalManager {
 
       default:
         logger.warn('Unknown message type:', (msg as { type: string }).type);
+    }
+  }
+
+  private getSessionsList(): HTMLElement | null {
+    return document.getElementById('sessionsList');
+  }
+
+  private updateEmptyState(): void {
+    const sessionsList = this.getSessionsList();
+    if (!sessionsList) return;
+
+    const emptyEl = sessionsList.querySelector('.sessions-empty') as HTMLElement;
+    if (emptyEl) {
+      emptyEl.style.display = this.terminals.size === 0 ? 'block' : 'none';
     }
   }
 
@@ -88,10 +103,25 @@ class TerminalManager {
       termData.terminal.dispose();
       termData.wrapper.remove();
       this.terminals.delete(sessionId);
+      this.updateEmptyState();
     }
   }
 
-  createTerminalForBlock(wrapper: HTMLElement, code: string, sessionName?: string): string {
+  closeAllSessions(): void {
+    logger.info('Closing all sessions');
+    const sessionIds = Array.from(this.terminals.keys());
+    for (const sessionId of sessionIds) {
+      this.closeSession(sessionId);
+    }
+  }
+
+  createTerminal(code: string, sessionName?: string): string {
+    const sessionsList = this.getSessionsList();
+    if (!sessionsList) {
+      logger.error('Sessions list element not found');
+      return '';
+    }
+
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     logger.info(`Creating new terminal with session: ${sessionId}${sessionName ? ` (named: ${sessionName})` : ''}`);
 
@@ -114,7 +144,8 @@ class TerminalManager {
       <div class="terminal-container"></div>
     `;
 
-    wrapper.appendChild(termWrapper);
+    // Add to sessions list (at the top for newest first, or at bottom)
+    sessionsList.appendChild(termWrapper);
 
     const termContainer = termWrapper.querySelector('.terminal-container') as HTMLElement;
     const terminal = new Terminal({
@@ -126,7 +157,7 @@ class TerminalManager {
         foreground: '#d4d4d4',
         cursor: '#d4d4d4',
       },
-      rows: 12,
+      rows: 10,
     });
 
     const fitAddon = new FitAddon();
@@ -164,12 +195,13 @@ class TerminalManager {
     this.pendingCommands.set(sessionId, { command: code });
     this.createSession(sessionId);
 
-    return sessionId;
-  }
+    // Update empty state
+    this.updateEmptyState();
 
-  getExistingSession(wrapper: HTMLElement): string | null {
-    const existingTerminal = wrapper.querySelector('.terminal-wrapper') as HTMLElement;
-    return existingTerminal?.dataset.sessionId || null;
+    // Scroll terminal into view
+    termWrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    return sessionId;
   }
 
   // Get session ID for a named session
@@ -190,6 +222,11 @@ class TerminalManager {
       // Focus the terminal
       termData.terminal.focus();
     }
+  }
+
+  // Check if there are any active sessions
+  hasActiveSessions(): boolean {
+    return this.terminals.size > 0;
   }
 }
 
