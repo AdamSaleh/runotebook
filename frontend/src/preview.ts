@@ -9,6 +9,32 @@ interface CodeToken {
   lang?: string;
 }
 
+interface CodeBlockMeta {
+  language: string;
+  session?: string;
+}
+
+// Parse the info string from a code fence (e.g., "sh session=myshell")
+function parseCodeFenceInfo(infoString: string): CodeBlockMeta {
+  const parts = infoString.trim().split(/\s+/);
+  const language = parts[0] || '';
+  let session: string | undefined;
+
+  // Parse key=value pairs
+  for (let i = 1; i < parts.length; i++) {
+    const match = parts[i].match(/^session=(.+)$/);
+    if (match) {
+      session = match[1];
+    }
+  }
+
+  return { language, session };
+}
+
+function isShellLanguage(lang: string): boolean {
+  return lang === 'sh' || lang === 'bash' || lang === 'shell';
+}
+
 function createRenderer(): Renderer {
   const renderer = new Renderer();
 
@@ -19,24 +45,33 @@ function createRenderer(): Renderer {
     language?: string
   ): string {
     let code: string;
-    let lang: string;
+    let langInfo: string;
 
     if (typeof codeOrToken === 'object' && codeOrToken !== null) {
       code = codeOrToken.text || '';
-      lang = codeOrToken.lang || '';
+      langInfo = codeOrToken.lang || '';
     } else {
       code = codeOrToken || '';
-      lang = language || '';
+      langInfo = language || '';
     }
 
+    const { language: lang, session } = parseCodeFenceInfo(langInfo);
     const id = `block-${blockId++}`;
     const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    if (lang === 'sh' || lang === 'bash' || lang === 'shell') {
+    if (isShellLanguage(lang)) {
+      const sessionAttr = session ? `data-session="${session}"` : '';
+      const sessionBadge = session
+        ? `<span class="session-badge" title="Session: ${session}">${session}</span>`
+        : '';
+
       return `
-        <div class="code-block-wrapper" id="${id}">
+        <div class="code-block-wrapper" id="${id}" ${session ? `data-session="${session}"` : ''}>
+          <div class="code-block-header">
+            ${sessionBadge}
+          </div>
           <pre><code class="language-${lang}">${escapedCode}</code></pre>
-          <button class="run-btn" data-block-id="${id}" data-code="${encodeURIComponent(code)}">
+          <button class="run-btn" data-block-id="${id}" data-code="${encodeURIComponent(code)}" ${sessionAttr}>
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -83,6 +118,7 @@ export function updatePreview(content: string): void {
 function runCodeBlock(btn: HTMLButtonElement): void {
   const blockIdAttr = btn.dataset.blockId;
   const code = decodeURIComponent(btn.dataset.code || '');
+  const sessionName = btn.dataset.session;
 
   if (!blockIdAttr) {
     logger.error('No block ID found on button');
@@ -95,19 +131,40 @@ function runCodeBlock(btn: HTMLButtonElement): void {
     return;
   }
 
-  logger.info(`Running code block: ${blockIdAttr}`);
+  logger.info(`Running code block: ${blockIdAttr}${sessionName ? ` (session: ${sessionName})` : ''}`);
   logger.debug('Code to execute:', code);
 
-  // Check if terminal already exists for this block
-  const existingSessionId = terminalManager.getExistingSession(wrapper);
-  if (existingSessionId) {
-    logger.debug(`Reusing existing session: ${existingSessionId}`);
-    terminalManager.sendInput(existingSessionId, code + '\n');
+  // If this block has a named session, check if that session exists anywhere
+  if (sessionName) {
+    const existingSessionId = terminalManager.getNamedSession(sessionName);
+    if (existingSessionId) {
+      logger.debug(`Reusing named session "${sessionName}": ${existingSessionId}`);
+      // Send code to the existing session
+      terminalManager.sendInput(existingSessionId, code + '\n');
+      // Scroll the terminal into view
+      terminalManager.scrollSessionIntoView(existingSessionId);
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.disabled = false;
+      }, 500);
+      return;
+    }
+  }
+
+  // Check if terminal already exists for this specific block
+  const existingBlockSession = terminalManager.getExistingSession(wrapper);
+  if (existingBlockSession) {
+    logger.debug(`Reusing existing block session: ${existingBlockSession}`);
+    terminalManager.sendInput(existingBlockSession, code + '\n');
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.disabled = false;
+    }, 500);
     return;
   }
 
-  // Create new terminal
-  terminalManager.createTerminalForBlock(wrapper, code);
+  // Create new terminal (with optional session name)
+  terminalManager.createTerminalForBlock(wrapper, code, sessionName);
 
   btn.disabled = true;
   setTimeout(() => {

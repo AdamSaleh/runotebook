@@ -204,6 +204,49 @@ header h1 {
     overflow: hidden;
 }
 
+/* Session badge on code blocks */
+.code-block-header {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    min-height: 20px;
+}
+
+.session-badge {
+    background: #0e639c;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Terminal session name in header */
+.terminal-session-name {
+    color: #4fc3f7;
+    font-weight: 500;
+}
+
+.terminal-session-name::before {
+    content: "Session: ";
+    color: #969696;
+    font-weight: normal;
+}
+
+/* Terminal flash animation when receiving input from another block */
+.terminal-wrapper.terminal-flash {
+    animation: terminal-flash-anim 0.5s ease-out;
+}
+
+@keyframes terminal-flash-anim {
+    0% {
+        box-shadow: 0 0 0 2px #4fc3f7;
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
 .status-bar {
     background: #007acc;
     color: #fff;

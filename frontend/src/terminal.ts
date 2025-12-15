@@ -4,9 +4,15 @@ import { logger } from './logger';
 import { wsConnection } from './websocket';
 import { TerminalSession, WsServerMessage } from './types';
 
+interface ExtendedTerminalSession extends TerminalSession {
+  sessionName?: string;
+}
+
 class TerminalManager {
-  private terminals = new Map<string, TerminalSession>();
+  private terminals = new Map<string, ExtendedTerminalSession>();
   private pendingCommands = new Map<string, { command: string }>();
+  // Map from named session names to session IDs
+  private namedSessions = new Map<string, string>();
 
   constructor() {
     wsConnection.setMessageHandler((msg) => this.handleMessage(msg));
@@ -74,22 +80,35 @@ class TerminalManager {
 
     const termData = this.terminals.get(sessionId);
     if (termData) {
+      // Remove from named sessions if it was a named session
+      if (termData.sessionName) {
+        this.namedSessions.delete(termData.sessionName);
+        logger.debug(`Removed named session: ${termData.sessionName}`);
+      }
       termData.terminal.dispose();
       termData.wrapper.remove();
       this.terminals.delete(sessionId);
     }
   }
 
-  createTerminalForBlock(wrapper: HTMLElement, code: string): string {
+  createTerminalForBlock(wrapper: HTMLElement, code: string, sessionName?: string): string {
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    logger.info(`Creating new terminal with session: ${sessionId}`);
+    logger.info(`Creating new terminal with session: ${sessionId}${sessionName ? ` (named: ${sessionName})` : ''}`);
 
     const termWrapper = document.createElement('div');
     termWrapper.className = 'terminal-wrapper';
     termWrapper.dataset.sessionId = sessionId;
+    if (sessionName) {
+      termWrapper.dataset.sessionName = sessionName;
+    }
+
+    const headerLabel = sessionName
+      ? `<span class="terminal-session-name">${sessionName}</span>`
+      : '<span>Terminal</span>';
+
     termWrapper.innerHTML = `
       <div class="terminal-header">
-        <span>Terminal</span>
+        ${headerLabel}
         <button class="terminal-close" title="Close terminal">&times;</button>
       </div>
       <div class="terminal-container"></div>
@@ -127,8 +146,14 @@ class TerminalManager {
     });
     resizeObserver.observe(termContainer);
 
-    // Store terminal reference
-    this.terminals.set(sessionId, { terminal, wrapper: termWrapper, fitAddon });
+    // Store terminal reference with session name
+    this.terminals.set(sessionId, { terminal, wrapper: termWrapper, fitAddon, sessionName });
+
+    // Register named session if provided
+    if (sessionName) {
+      this.namedSessions.set(sessionName, sessionId);
+      logger.debug(`Registered named session: ${sessionName} -> ${sessionId}`);
+    }
 
     // Close button handler
     termWrapper.querySelector('.terminal-close')?.addEventListener('click', () => {
@@ -145,6 +170,26 @@ class TerminalManager {
   getExistingSession(wrapper: HTMLElement): string | null {
     const existingTerminal = wrapper.querySelector('.terminal-wrapper') as HTMLElement;
     return existingTerminal?.dataset.sessionId || null;
+  }
+
+  // Get session ID for a named session
+  getNamedSession(sessionName: string): string | null {
+    return this.namedSessions.get(sessionName) || null;
+  }
+
+  // Scroll a session's terminal into view and focus it
+  scrollSessionIntoView(sessionId: string): void {
+    const termData = this.terminals.get(sessionId);
+    if (termData?.wrapper) {
+      termData.wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Flash the terminal to indicate it received input
+      termData.wrapper.classList.add('terminal-flash');
+      setTimeout(() => {
+        termData.wrapper.classList.remove('terminal-flash');
+      }, 500);
+      // Focus the terminal
+      termData.terminal.focus();
+    }
   }
 }
 
