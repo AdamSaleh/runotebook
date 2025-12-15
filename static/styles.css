@@ -58,7 +58,7 @@ header h1 {
     overflow: hidden;
 }
 
-.editor-pane, .preview-pane, .sessions-pane {
+.editor-pane, .sessions-pane {
     overflow: auto;
     height: 100%;
 }
@@ -66,10 +66,6 @@ header h1 {
 .editor-pane {
     flex: 1;
     border-right: 1px solid #3c3c3c;
-}
-
-.preview-pane {
-    flex: 1;
 }
 
 .sessions-pane {
@@ -91,93 +87,35 @@ header h1 {
     font-size: 14px;
 }
 
-.preview-pane {
-    padding: 20px 30px;
-    background: #1e1e1e;
+/* Run button gutter */
+.cm-run-gutter {
+    width: 28px;
+    background: #252526;
 }
 
-.preview-content {
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.preview-content h1, .preview-content h2, .preview-content h3 {
-    color: #fff;
-    margin-top: 24px;
-    margin-bottom: 12px;
-}
-
-.preview-content h1 { font-size: 28px; border-bottom: 1px solid #3c3c3c; padding-bottom: 8px; }
-.preview-content h2 { font-size: 22px; }
-.preview-content h3 { font-size: 18px; }
-
-.preview-content p {
-    line-height: 1.6;
-    margin: 12px 0;
-}
-
-.preview-content a {
-    color: #4fc3f7;
-}
-
-.preview-content ul, .preview-content ol {
-    padding-left: 24px;
-}
-
-.preview-content li {
-    margin: 6px 0;
-    line-height: 1.5;
-}
-
-.code-block-wrapper {
-    position: relative;
-    margin: 16px 0;
-}
-
-.code-block-wrapper pre {
-    margin: 0;
-    background: #2d2d2d;
-    border-radius: 6px;
-    padding: 16px;
-    overflow-x: auto;
-}
-
-.code-block-wrapper code {
-    font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.run-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+.run-gutter-btn {
+    width: 20px;
+    height: 20px;
     background: #0e639c;
-    color: #fff;
     border: none;
-    padding: 6px 14px;
-    border-radius: 4px;
+    border-radius: 3px;
+    color: white;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 10px;
+    line-height: 20px;
+    margin: 2px 4px;
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
-    transition: background 0.15s;
+    justify-content: center;
 }
 
-.run-btn:hover {
+.run-gutter-btn:hover {
     background: #1177bb;
 }
 
-.run-btn:disabled {
-    background: #555;
-    cursor: not-allowed;
-}
-
-.run-btn svg {
-    width: 12px;
-    height: 12px;
+.run-gutter-btn:active {
+    background: #0d5a8c;
 }
 
 .terminal-wrapper {
@@ -216,23 +154,6 @@ header h1 {
     height: 250px;
     max-height: 400px;
     overflow: hidden;
-}
-
-/* Session badge on code blocks */
-.code-block-header {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 4px;
-    min-height: 20px;
-}
-
-.session-badge {
-    background: #0e639c;
-    color: #fff;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 500;
 }
 
 /* Terminal session name in header */
@@ -341,7 +262,6 @@ header h1 {
 }
 
 /* Editor only mode */
-.container.editor-only .preview-pane,
 .container.editor-only .sessions-pane {
     display: none;
 }
@@ -350,15 +270,8 @@ header h1 {
     border-right: none;
 }
 
-/* Preview only mode */
-.container.preview-only .editor-pane,
-.container.preview-only .sessions-pane {
-    display: none;
-}
-
-/* Sessions only mode (hide editor and preview) */
-.container.sessions-only .editor-pane,
-.container.sessions-only .preview-pane {
+/* Sessions only mode */
+.container.sessions-only .editor-pane {
     display: none;
 }
 

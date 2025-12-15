@@ -165,12 +165,12 @@ async function runHttpTests(): Promise<void> {
     }
   });
 
-  // Test: HTML contains preview element
-  await runTest('HTML contains preview element', async () => {
+  // Test: HTML contains sessions pane
+  await runTest('HTML contains sessions pane', async () => {
     const response = await fetch(SERVER_URL);
     const html = await response.text();
-    if (!html.includes('id="preview"')) {
-      throw new Error('Page does not contain preview element');
+    if (!html.includes('id="sessionsPane"')) {
+      throw new Error('Page does not contain sessions pane element');
     }
   });
 

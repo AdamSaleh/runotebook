@@ -2,7 +2,6 @@ import 'xterm/css/xterm.css';
 import { logger } from './logger';
 import { wsConnection } from './websocket';
 import { createEditor } from './editor';
-import { initializePreview, updatePreview } from './preview';
 import { defaultContent } from './content';
 import { terminalManager } from './terminal';
 
@@ -39,25 +38,19 @@ function main(): void {
   logger.info(`Protocol: ${window.location.protocol}`);
   logger.info(`Host: ${window.location.host}`);
 
-  // Initialize marked renderer
-  initializePreview();
-
   // Initialize tabs
   initializeTabs();
 
   // Initialize clear sessions button
   initializeClearSessions();
 
-  // Create editor
+  // Create editor with run buttons in gutter
   const editorEl = document.getElementById('editor');
   if (editorEl) {
-    createEditor(editorEl, defaultContent, updatePreview);
+    createEditor(editorEl, defaultContent);
   } else {
     logger.error('Editor element not found');
   }
-
-  // Initial preview render
-  updatePreview(defaultContent);
 
   // Connect WebSocket
   wsConnection.connect();
