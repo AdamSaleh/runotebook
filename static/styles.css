@@ -199,6 +199,9 @@ header h1 {
 
 .terminal-container {
     padding: 8px;
+    height: 250px;
+    max-height: 400px;
+    overflow: hidden;
 }
 
 .status-bar {

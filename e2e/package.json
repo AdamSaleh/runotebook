@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "tsx test/e2e.test.ts",
-    "test:ci": "tsx test/e2e.test.ts --headless"
+    "test:ci": "tsx test/e2e.test.ts --headless",
+    "test:ui": "playwright test --project=chromium",
+    "test:ui:firefox": "playwright test --project=firefox",
+    "test:ui:headed": "playwright test --headed --project=chromium",
+    "test:ui:debug": "playwright test --debug --project=chromium"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +20,8 @@
     "ws": "^8.14.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
   }
 }
