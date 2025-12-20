@@ -17,6 +17,31 @@ use uuid::Uuid;
 
 use config::ConfigManager;
 
+#[derive(Debug, Deserialize)]
+struct ConsoleLogRequest {
+    level: String,
+    message: String,
+    timestamp: Option<String>,
+}
+
+async fn console_log_handler(
+    body: web::Json<ConsoleLogRequest>,
+) -> HttpResponse {
+    let level = body.level.as_str();
+    let msg = &body.message;
+    let ts = body.timestamp.as_deref().unwrap_or("");
+
+    match level {
+        "error" => log::error!("[BROWSER {}] {}", ts, msg),
+        "warn" => log::warn!("[BROWSER {}] {}", ts, msg),
+        "info" => log::info!("[BROWSER {}] {}", ts, msg),
+        "debug" => log::debug!("[BROWSER {}] {}", ts, msg),
+        _ => log::trace!("[BROWSER {}] {}", ts, msg),
+    }
+
+    HttpResponse::Ok().finish()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 enum WsMessage {
@@ -336,6 +361,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(config.clone()))
             // WebSocket endpoint
             .route("/ws", web::get().to(ws_handler))
+            // Console log forwarding (no auth required)
+            .route("/api/console", web::post().to(console_log_handler))
             // Auth endpoints
             .route("/api/auth/check", web::get().to(auth::auth_check_handler))
             // Workspace endpoints
