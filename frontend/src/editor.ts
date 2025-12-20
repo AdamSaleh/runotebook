@@ -7,6 +7,20 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { logger } from './logger';
 import { terminalManager } from './terminal';
 
+// Current runbook identifier for default session naming
+let currentRunbookId: string | null = null;
+
+export function setCurrentRunbook(runbookId: string): void {
+  currentRunbookId = runbookId;
+  logger.debug(`Set current runbook: ${runbookId}`);
+}
+
+function getDefaultSessionName(): string {
+  if (!currentRunbookId) return 'default';
+  // Create a clean session name from the runbook path
+  return currentRunbookId.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
 function isShellLanguage(lang: string): boolean {
   return lang === 'sh' || lang === 'bash' || lang === 'shell';
 }
@@ -24,9 +38,8 @@ class RunButtonMarker extends GutterMarker {
     const btn = document.createElement('button');
     btn.className = 'run-gutter-btn';
     btn.innerHTML = '&#9654;'; // Play triangle
-    btn.title = this.sessionName
-      ? `Run in session: ${this.sessionName}`
-      : 'Run in new terminal';
+    const displayName = this.sessionName || getDefaultSessionName();
+    btn.title = `Run in session: ${displayName}`;
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -38,21 +51,20 @@ class RunButtonMarker extends GutterMarker {
   }
 
   private runCode(): void {
-    logger.info(`Running code${this.sessionName ? ` in session: ${this.sessionName}` : ''}`);
+    const sessionName = this.sessionName || getDefaultSessionName();
+    logger.info(`Running code in session: ${sessionName}`);
     logger.debug('Code to execute:', this.code);
 
     // Check for existing named session, reuse or create new
-    if (this.sessionName) {
-      const existingId = terminalManager.getNamedSession(this.sessionName);
-      if (existingId) {
-        logger.debug(`Reusing named session "${this.sessionName}": ${existingId}`);
-        terminalManager.sendInput(existingId, this.code + '\n');
-        terminalManager.scrollSessionIntoView(existingId);
-        return;
-      }
+    const existingId = terminalManager.getNamedSession(sessionName);
+    if (existingId) {
+      logger.debug(`Reusing session "${sessionName}": ${existingId}`);
+      terminalManager.sendInput(existingId, this.code + '\n');
+      terminalManager.scrollSessionIntoView(existingId);
+      return;
     }
 
-    terminalManager.createTerminal(this.code, this.sessionName);
+    terminalManager.createTerminal(this.code, sessionName);
   }
 
   eq(other: GutterMarker): boolean {

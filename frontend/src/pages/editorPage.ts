@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import { apiClient } from '../api';
 import { router } from '../router';
-import { createEditor, getEditorContent, setEditorContent } from '../editor';
+import { createEditor, getEditorContent, setEditorContent, setCurrentRunbook } from '../editor';
 import { wsConnection } from '../websocket';
 import { terminalManager } from '../terminal';
 import type { RouteParams } from '../types';
@@ -148,6 +148,10 @@ async function loadFile(): Promise<void> {
   if (!editorEl) return;
 
   try {
+    // Set current runbook for default session naming
+    const runbookId = `${currentWorkspace}/${currentBranch}/${currentFilepath}`;
+    setCurrentRunbook(runbookId);
+
     const { content } = await apiClient.readFile(currentWorkspace, currentBranch, currentFilepath);
     createEditor(editorEl, content);
     hasUnsavedChanges = false;
