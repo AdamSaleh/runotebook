@@ -61,7 +61,7 @@ class TerminalManager {
   }
 
   private getSessionsList(): HTMLElement | null {
-    return document.getElementById('sessionsList');
+    return document.getElementById('sessions');
   }
 
   private updateEmptyState(): void {
