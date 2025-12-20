@@ -18,3 +18,31 @@ export interface TerminalSession {
   wrapper: HTMLElement;
   fitAddon: import('xterm-addon-fit').FitAddon;
 }
+
+// Workspace types
+export interface Workspace {
+  name: string;
+  repo_url: string;
+  base_branch: string;
+  created_at: string;
+}
+
+export interface Branch {
+  name: string;
+  is_worktree: boolean;
+  worktree_path: string | null;
+}
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children?: FileEntry[];
+}
+
+// Route params
+export interface RouteParams {
+  workspace?: string;
+  branch?: string;
+  filepath?: string;
+}

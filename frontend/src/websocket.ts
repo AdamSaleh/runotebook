@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { authManager } from './auth';
 import { WsClientMessage, WsServerMessage } from './types';
 
 export type MessageHandler = (msg: WsServerMessage) => void;
@@ -21,8 +22,9 @@ class WebSocketConnection {
 
   connect(): void {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    logger.info(`Connecting to WebSocket: ${wsUrl}`);
+    const tokenParam = authManager.getTokenParam();
+    const wsUrl = `${protocol}//${window.location.host}/ws${tokenParam ? '?' + tokenParam : ''}`;
+    logger.info(`Connecting to WebSocket: ${wsUrl.replace(/token=[^&]+/, 'token=***')}`);
 
     try {
       this.ws = new WebSocket(wsUrl);

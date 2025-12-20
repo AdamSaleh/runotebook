@@ -1,5 +1,6 @@
 import { spawn, execSync, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import os from 'os';
@@ -20,6 +21,10 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend');
 const SERVER_URL = 'http://127.0.0.1:8080';
 const WS_URL = 'ws://127.0.0.1:8080/ws';
+const CONFIG_FILE = path.join(os.homedir(), '.runotepad', 'config.json');
+
+// Auth token (read from config after server starts)
+let authToken: string = '';
 
 // Test result tracking
 interface TestResult {
@@ -65,6 +70,21 @@ async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
 function execCommand(command: string, cwd: string): void {
   log(`Running: ${command} (in ${cwd})`);
   execSync(command, { cwd, stdio: 'inherit' });
+}
+
+function readAuthToken(): string {
+  try {
+    const configData = fs.readFileSync(CONFIG_FILE, 'utf-8');
+    const config = JSON.parse(configData);
+    return config.token || '';
+  } catch (err) {
+    logError(`Failed to read auth token: ${err}`);
+    return '';
+  }
+}
+
+function getAuthenticatedWsUrl(): string {
+  return `${WS_URL}?token=${encodeURIComponent(authToken)}`;
 }
 
 // Step 1: Build Frontend (typecheck + build)
@@ -131,6 +151,14 @@ async function startServer(): Promise<void> {
     // Wait for server to respond to HTTP requests
     await waitForServer(SERVER_URL, 30000);
     log('Server is responding to requests');
+
+    // Read auth token from config
+    authToken = readAuthToken();
+    if (authToken) {
+      log(`Auth token loaded: ${authToken.substring(0, 8)}...`);
+    } else {
+      throw new Error('Failed to load auth token from config');
+    }
   });
 }
 
@@ -156,39 +184,12 @@ async function runHttpTests(): Promise<void> {
     }
   });
 
-  // Test: HTML contains editor element
-  await runTest('HTML contains editor element', async () => {
+  // Test: HTML contains app container
+  await runTest('HTML contains app container', async () => {
     const response = await fetch(SERVER_URL);
     const html = await response.text();
-    if (!html.includes('id="editor"')) {
-      throw new Error('Page does not contain editor element');
-    }
-  });
-
-  // Test: HTML contains sessions pane
-  await runTest('HTML contains sessions pane', async () => {
-    const response = await fetch(SERVER_URL);
-    const html = await response.text();
-    if (!html.includes('id="sessionsPane"')) {
-      throw new Error('Page does not contain sessions pane element');
-    }
-  });
-
-  // Test: HTML contains status indicator
-  await runTest('HTML contains status indicator', async () => {
-    const response = await fetch(SERVER_URL);
-    const html = await response.text();
-    if (!html.includes('id="statusText"')) {
-      throw new Error('Page does not contain status indicator');
-    }
-  });
-
-  // Test: HTML contains view tabs
-  await runTest('HTML contains view tabs', async () => {
-    const response = await fetch(SERVER_URL);
-    const html = await response.text();
-    if (!html.includes('data-view="split"') || !html.includes('data-view="editor-only"')) {
-      throw new Error('Page does not contain view tabs');
+    if (!html.includes('id="app"')) {
+      throw new Error('Page does not contain app container');
     }
   });
 
@@ -215,13 +216,83 @@ async function runHttpTests(): Promise<void> {
       throw new Error('CSS bundle appears too small');
     }
   });
+
+  // Test: Auth check endpoint requires token
+  await runTest('Auth check rejects missing token', async () => {
+    const response = await fetch(`${SERVER_URL}/api/auth/check`);
+    const data = await response.json();
+    if (data.valid !== false) {
+      throw new Error('Auth check should reject missing token');
+    }
+  });
+
+  // Test: Auth check endpoint accepts valid token
+  await runTest('Auth check accepts valid token', async () => {
+    const response = await fetch(`${SERVER_URL}/api/auth/check?token=${authToken}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    if (data.valid !== true) {
+      throw new Error('Auth check should accept valid token');
+    }
+  });
+
+  // Test: API endpoints require auth
+  await runTest('API endpoints require auth', async () => {
+    const response = await fetch(`${SERVER_URL}/api/workspaces`);
+    if (response.status !== 401) {
+      throw new Error(`Expected 401, got ${response.status}`);
+    }
+  });
+
+  // Test: API endpoints work with auth
+  await runTest('API endpoints work with auth', async () => {
+    const response = await fetch(`${SERVER_URL}/api/workspaces?token=${authToken}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error('Expected array of workspaces');
+    }
+  });
 }
 
 async function runWebSocketTests(): Promise<void> {
-  // Test: WebSocket connection works
-  await runTest('WebSocket connection establishes', async () => {
+  // Test: WebSocket rejects connection without token
+  await runTest('WebSocket rejects missing token', async () => {
     await new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(WS_URL);
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Expected WebSocket to be rejected'));
+      }, 5000);
+
+      ws.on('open', () => {
+        clearTimeout(timeout);
+        ws.close();
+        reject(new Error('WebSocket should not have connected without token'));
+      });
+
+      ws.on('error', () => {
+        // Expected - connection rejected
+        clearTimeout(timeout);
+        resolve();
+      });
+
+      ws.on('close', (code) => {
+        clearTimeout(timeout);
+        // HTTP 401 results in close before open
+        resolve();
+      });
+    });
+  });
+
+  // Test: WebSocket connection works with token
+  await runTest('WebSocket connection with token establishes', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(getAuthenticatedWsUrl());
       const timeout = setTimeout(() => {
         ws.close();
         reject(new Error('WebSocket connection timeout'));
@@ -243,7 +314,7 @@ async function runWebSocketTests(): Promise<void> {
   // Test: WebSocket can create PTY session
   await runTest('WebSocket can create PTY session', async () => {
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(getAuthenticatedWsUrl());
       const timeout = setTimeout(() => {
         ws.close();
         reject(new Error('PTY session creation timeout'));
@@ -293,9 +364,8 @@ async function runWebSocketTests(): Promise<void> {
   // Test: PTY session can execute commands
   await runTest('PTY session can execute commands', async () => {
     await new Promise<void>((resolve, reject) => {
-      const ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(getAuthenticatedWsUrl());
       let sessionId: string | null = null;
-      let outputReceived = false;
 
       const timeout = setTimeout(() => {
         ws.close();
@@ -327,7 +397,6 @@ async function runWebSocketTests(): Promise<void> {
           } else if (msg.type === 'output' && msg.session_id === sessionId) {
             const output = msg.data || '';
             if (output.includes('E2E_TEST_OUTPUT')) {
-              outputReceived = true;
               clearTimeout(timeout);
               log('Received expected output from PTY');
 

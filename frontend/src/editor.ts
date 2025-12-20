@@ -1,8 +1,8 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, gutter, GutterMarker } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, gutter, GutterMarker, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { EditorState, RangeSet, StateField, Range } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, syntaxTree } from '@codemirror/language';
+import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { logger } from './logger';
 import { terminalManager } from './terminal';
@@ -65,7 +65,9 @@ class RunButtonMarker extends GutterMarker {
 // Compute markers for all shell code blocks
 function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
   const markers: Range<GutterMarker>[] = [];
-  const tree = syntaxTree(state);
+
+  // Ensure syntax tree is fully parsed (wait up to 100ms)
+  const tree = ensureSyntaxTree(state, state.doc.length, 100) || syntaxTree(state);
 
   tree.iterate({
     enter(node) {
@@ -114,11 +116,10 @@ const codeBlockField = StateField.define<RangeSet<GutterMarker>>({
   create(state) {
     return computeMarkers(state);
   },
-  update(markers, tr) {
-    if (tr.docChanged) {
-      return computeMarkers(tr.state);
-    }
-    return markers;
+  update(_markers, tr) {
+    // Always recompute markers - the syntaxUpdatePlugin will trigger
+    // additional updates after parsing completes
+    return computeMarkers(tr.state);
   }
 });
 
@@ -128,7 +129,38 @@ const runGutter = gutter({
   markers: (view) => view.state.field(codeBlockField),
 });
 
+// Plugin to force re-parsing when document changes
+const syntaxUpdatePlugin = ViewPlugin.fromClass(class {
+  private pendingUpdate: number | null = null;
+
+  update(update: ViewUpdate) {
+    if (update.docChanged) {
+      // Cancel any pending update
+      if (this.pendingUpdate !== null) {
+        clearTimeout(this.pendingUpdate);
+      }
+      // Schedule re-computation after a short delay to allow parsing
+      this.pendingUpdate = window.setTimeout(() => {
+        this.pendingUpdate = null;
+        // Trigger a state update to recompute markers
+        update.view.dispatch({
+          effects: [],
+        });
+      }, 150);
+    }
+  }
+
+  destroy() {
+    if (this.pendingUpdate !== null) {
+      clearTimeout(this.pendingUpdate);
+    }
+  }
+});
+
 export type ContentChangeHandler = (content: string) => void;
+
+// Store reference to current editor
+let currentEditor: EditorView | null = null;
 
 export function createEditor(
   parent: HTMLElement,
@@ -136,6 +168,12 @@ export function createEditor(
   onContentChange?: ContentChangeHandler
 ): EditorView {
   logger.info('Creating CodeMirror editor with run gutter');
+
+  // Destroy existing editor if present
+  if (currentEditor) {
+    currentEditor.destroy();
+    currentEditor = null;
+  }
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged && onContentChange) {
@@ -157,6 +195,7 @@ export function createEditor(
       extensions: [
         codeBlockField,
         runGutter,
+        syntaxUpdatePlugin,
         lineNumbers(),
         highlightActiveLine(),
         highlightActiveLineGutter(),
@@ -174,5 +213,22 @@ export function createEditor(
   });
 
   logger.info('CodeMirror editor created successfully');
+  currentEditor = editor;
   return editor;
+}
+
+export function getEditorContent(): string {
+  return currentEditor?.state.doc.toString() ?? '';
+}
+
+export function setEditorContent(content: string): void {
+  if (currentEditor) {
+    currentEditor.dispatch({
+      changes: {
+        from: 0,
+        to: currentEditor.state.doc.length,
+        insert: content,
+      },
+    });
+  }
 }

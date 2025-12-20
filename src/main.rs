@@ -1,3 +1,9 @@
+mod auth;
+mod config;
+mod file_ops;
+mod git_ops;
+mod workspace;
+
 use actix_files::Files;
 use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
@@ -8,6 +14,8 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
+
+use config::ConfigManager;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -52,7 +60,26 @@ async fn ws_handler(
     req: HttpRequest,
     body: web::Payload,
     state: web::Data<Arc<AppState>>,
+    config: web::Data<Arc<ConfigManager>>,
 ) -> actix_web::Result<HttpResponse> {
+    // Check authentication for WebSocket
+    if let Some(token) = req.query_string().split('&').find_map(|pair| {
+        let mut parts = pair.splitn(2, '=');
+        let key = parts.next()?;
+        let value = parts.next()?;
+        if key == "token" { Some(value.to_string()) } else { None }
+    }) {
+        if !config.verify_token(&token) {
+            return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Invalid token"
+            })));
+        }
+    } else {
+        return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Token required for WebSocket connection"
+        })));
+    }
+
     log::info!("WebSocket connection request from {:?}", req.peer_addr());
     log::debug!("Request headers: {:?}", req.headers());
 
@@ -281,9 +308,22 @@ async fn main() -> std::io::Result<()> {
     log::info!("===========================================");
     log::info!("  Runotepad - Interactive Runbook Server");
     log::info!("===========================================");
+
+    // Initialize config
+    let config = match ConfigManager::new() {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            log::error!("Failed to initialize config: {}", e);
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        }
+    };
+
+    log::info!("Workspace directory: {:?}", config.get_workspace_dir());
+    log::info!("Access token: {}", config.get_token());
+    log::info!("");
     log::info!("Starting server at http://0.0.0.0:8080");
-    log::info!("Access locally at http://127.0.0.1:8080");
-    log::info!("Static files served from ./static");
+    log::info!("Access with token: http://127.0.0.1:8080/?token={}", config.get_token());
+    log::info!("");
 
     let state = Arc::new(AppState {
         sessions: Mutex::new(HashMap::new()),
@@ -293,7 +333,31 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .app_data(web::Data::new(state.clone()))
+            .app_data(web::Data::new(config.clone()))
+            // WebSocket endpoint
             .route("/ws", web::get().to(ws_handler))
+            // Auth endpoints
+            .route("/api/auth/check", web::get().to(auth::auth_check_handler))
+            // Workspace endpoints
+            .route("/api/workspaces", web::get().to(workspace::list_workspaces))
+            .route("/api/workspaces", web::post().to(workspace::create_workspace))
+            .route("/api/workspaces/{name}", web::delete().to(workspace::delete_workspace))
+            // Branch endpoints
+            .route("/api/workspaces/{name}/branches", web::get().to(workspace::list_branches))
+            .route("/api/workspaces/{name}/branches", web::post().to(workspace::create_branch))
+            .route("/api/workspaces/{name}/branches/{branch}", web::delete().to(workspace::delete_branch))
+            // File endpoints
+            .route("/api/workspaces/{name}/branches/{branch}/files", web::get().to(workspace::list_files))
+            .route("/api/workspaces/{name}/branches/{branch}/file", web::get().to(workspace::read_file))
+            .route("/api/workspaces/{name}/branches/{branch}/file", web::put().to(workspace::save_file))
+            // Git operation endpoints
+            .route("/api/workspaces/{name}/branches/{branch}/commit", web::post().to(workspace::commit_files))
+            .route("/api/workspaces/{name}/branches/{branch}/push", web::post().to(workspace::push_branch))
+            .route("/api/workspaces/{name}/branches/{branch}/pull", web::post().to(workspace::pull_branch))
+            .route("/api/workspaces/{name}/branches/{branch}/rebase", web::post().to(workspace::rebase_branch))
+            .route("/api/workspaces/{name}/branches/{branch}/checkout", web::post().to(workspace::change_base_branch))
+            .route("/api/workspaces/{name}/branches/{branch}/rename", web::post().to(workspace::rename_branch))
+            // Static files (must be last)
             .service(Files::new("/", "./static").index_file("index.html"))
     })
     .bind("0.0.0.0:8080")?

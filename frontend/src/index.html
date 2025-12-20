@@ -1,43 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Runotepad - Interactive Runbook</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="bundle.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runotepad</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="bundle.css">
 </head>
 <body>
-    <header>
-        <h1>Runotepad</h1>
-        <div class="tabs">
-            <button class="tab" data-view="editor-only">Editor</button>
-            <button class="tab active" data-view="split">Split</button>
-            <button class="tab" data-view="sessions-only">Sessions</button>
-        </div>
-    </header>
-
-    <div class="container" id="container">
-        <div class="editor-pane" id="editor"></div>
-        <div class="sessions-pane" id="sessionsPane">
-            <div class="sessions-header">
-                <span>Sessions</span>
-                <button class="sessions-clear" id="clearSessions" title="Close all sessions">Clear All</button>
-            </div>
-            <div class="sessions-list" id="sessionsList">
-                <div class="sessions-empty">No active sessions. Click "Run" on a code block to start.</div>
-            </div>
-        </div>
+  <div id="app">
+    <div class="loading-screen">
+      <h1>Runotepad</h1>
+      <p>Loading...</p>
     </div>
-
-    <div class="status-bar">
-        <div class="connection-status">
-            <span class="status-dot" id="statusDot"></span>
-            <span id="statusText">Connecting...</span>
-        </div>
-        <span id="cursorPos">Ln 1, Col 1</span>
-    </div>
-
-    <script src="bundle.js"></script>
+  </div>
+  <script src="bundle.js"></script>
 </body>
 </html>

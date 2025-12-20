@@ -1,33 +1,35 @@
 import 'xterm/css/xterm.css';
 import { logger } from './logger';
-import { wsConnection } from './websocket';
-import { createEditor } from './editor';
-import { defaultContent } from './content';
-import { terminalManager } from './terminal';
+import { router } from './router';
+import { renderLanding } from './pages/landing';
+import { renderBrowser } from './pages/browser';
+import { renderEditor } from './pages/editorPage';
 
-function initializeTabs(): void {
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      const container = document.getElementById('container');
-      if (container) {
-        const view = (tab as HTMLElement).dataset.view || 'split';
-        container.className = `container ${view}`;
-      }
-    });
-  });
+function getAppContainer(): HTMLElement {
+  const container = document.getElementById('app');
+  if (!container) {
+    throw new Error('App container not found');
+  }
+  return container;
 }
 
-function initializeClearSessions(): void {
-  const clearBtn = document.getElementById('clearSessions');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      logger.info('Clearing all sessions');
-      terminalManager.closeAllSessions();
-    });
-  }
+function setupRoutes(): void {
+  const container = getAppContainer();
+
+  // Landing page (root)
+  router.route('/', () => {
+    renderLanding(container);
+  });
+
+  // File browser (workspace + branch)
+  router.route('/:workspace/:branch/', (params) => {
+    renderBrowser(container, params);
+  });
+
+  // Editor (workspace + branch + filepath)
+  router.route('/:workspace/:branch/:filepath*', (params) => {
+    renderEditor(container, params);
+  });
 }
 
 function main(): void {
@@ -38,22 +40,11 @@ function main(): void {
   logger.info(`Protocol: ${window.location.protocol}`);
   logger.info(`Host: ${window.location.host}`);
 
-  // Initialize tabs
-  initializeTabs();
+  // Setup routes
+  setupRoutes();
 
-  // Initialize clear sessions button
-  initializeClearSessions();
-
-  // Create editor with run buttons in gutter
-  const editorEl = document.getElementById('editor');
-  if (editorEl) {
-    createEditor(editorEl, defaultContent);
-  } else {
-    logger.error('Editor element not found');
-  }
-
-  // Connect WebSocket
-  wsConnection.connect();
+  // Start router
+  router.start();
 
   logger.info('Initialization complete');
 }

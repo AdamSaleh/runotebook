@@ -280,3 +280,490 @@ header h1 {
     max-width: none;
     border-left: none;
 }
+
+/* =========================================
+   App Container & Loading
+   ========================================= */
+#app {
+    min-height: 100vh;
+}
+
+.loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: #969696;
+}
+
+.loading-screen h1 {
+    margin-bottom: 10px;
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: #0e639c;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1177bb;
+}
+
+.btn-primary:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #3c3c3c;
+    color: #d4d4d4;
+}
+
+.btn-secondary:hover {
+    background: #4a4a4a;
+}
+
+.btn-danger {
+    background: #c42b1c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #d94433;
+}
+
+.btn-small {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* =========================================
+   Forms
+   ========================================= */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #d4d4d4;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    background: #3c3c3c;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #0e639c;
+}
+
+.error-message {
+    color: #f48771;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+.hint {
+    color: #969696;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+/* =========================================
+   Landing Page
+   ========================================= */
+.landing {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.landing-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.landing-header h1 {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.landing-header p {
+    color: #969696;
+    font-size: 16px;
+}
+
+.workspaces-section,
+.create-workspace-section,
+.login-section {
+    background: #252526;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.workspaces-section h2,
+.create-workspace-section h2,
+.login-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+.workspaces-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.workspace-card {
+    background: #2d2d2d;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.workspace-info h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+}
+
+.workspace-info .repo-url {
+    color: #969696;
+    font-size: 13px;
+    margin: 4px 0;
+    word-break: break-all;
+}
+
+.workspace-info .base-branch {
+    color: #4fc3f7;
+    font-size: 12px;
+    margin: 4px 0;
+}
+
+.workspace-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.branches-container {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #3c3c3c;
+}
+
+.branches-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.branch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #3c3c3c;
+    border-radius: 4px;
+}
+
+.branch-item.active {
+    border-left: 3px solid #4caf50;
+}
+
+.branch-name {
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.new-branch-form {
+    display: flex;
+    gap: 8px;
+}
+
+.new-branch-form input {
+    flex: 1;
+    padding: 6px 10px;
+    background: #3c3c3c;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-size: 13px;
+}
+
+.create-form {
+    max-width: 500px;
+}
+
+.loading {
+    color: #969696;
+    font-style: italic;
+}
+
+.empty {
+    color: #969696;
+    text-align: center;
+    padding: 20px;
+}
+
+.error {
+    color: #f48771;
+}
+
+/* =========================================
+   File Browser
+   ========================================= */
+.browser {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.browser-header {
+    background: #252526;
+    padding: 12px 20px;
+    border-bottom: 1px solid #3c3c3c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.breadcrumb a {
+    color: #4fc3f7;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-sep {
+    color: #555;
+}
+
+.breadcrumb-current,
+.breadcrumb-item:not(a) {
+    color: #d4d4d4;
+}
+
+.browser-content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+}
+
+.file-tree {
+    max-width: 600px;
+}
+
+.folder-item {
+    margin-left: calc(var(--depth, 0) * 16px);
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.folder-header:hover {
+    background: #2d2d2d;
+}
+
+.folder-toggle {
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.folder-item.collapsed .folder-toggle {
+    transform: rotate(-90deg);
+}
+
+.folder-item.collapsed .folder-children {
+    display: none;
+}
+
+.folder-name {
+    font-weight: 500;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    margin-left: calc(var(--depth, 0) * 16px);
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.file-item:hover {
+    background: #2d2d2d;
+}
+
+.file-icon {
+    font-size: 14px;
+}
+
+.file-name {
+    font-size: 14px;
+}
+
+.create-file-section {
+    background: #252526;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.create-file-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+}
+
+.create-file-form {
+    display: flex;
+    gap: 8px;
+}
+
+.create-file-form input {
+    flex: 1;
+    padding: 8px 12px;
+    background: #3c3c3c;
+    border: 1px solid #555;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-size: 14px;
+}
+
+.create-file-form input:focus {
+    outline: none;
+    border-color: #0e639c;
+}
+
+.browser-content h3 {
+    font-size: 14px;
+    margin: 0 0 12px 0;
+    color: #969696;
+}
+
+/* =========================================
+   Editor Page
+   ========================================= */
+.editor-page {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-header {
+    background: #252526;
+    padding: 8px 20px;
+    border-bottom: 1px solid #3c3c3c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.git-toolbar {
+    display: flex;
+    gap: 8px;
+}
+
+.editor-page .tabs {
+    background: #252526;
+    padding: 0 20px;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.editor-page .container {
+    flex: 1;
+}
+
+.editor-page #editor {
+    height: 100%;
+}
+
+.editor-page .sessions-pane h2 {
+    margin: 0;
+    padding: 12px;
+    font-size: 14px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #3c3c3c;
+}
+
+.editor-page #sessions {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.clear-sessions {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #555;
+    color: #969696;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.clear-sessions:hover {
+    background: #3c3c3c;
+    color: #fff;
+}
+
+/* Editor view modes */
+.container.editor .sessions-pane {
+    display: none;
+}
+
+.container.editor .editor-pane {
+    border-right: none;
+}
+
+.container.sessions .editor-pane {
+    display: none;
+}
+
+.container.sessions .sessions-pane {
+    width: 100%;
+    max-width: none;
+    border-left: none;
+}
