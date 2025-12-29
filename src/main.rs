@@ -4,8 +4,8 @@ mod file_ops;
 mod git_ops;
 mod workspace;
 
-use actix_files::Files;
-use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_files::{Files, NamedFile};
+use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result as ActixResult};
 use futures::StreamExt;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,15 @@ struct ConsoleLogRequest {
     level: String,
     message: String,
     timestamp: Option<String>,
+}
+
+/// Serve index.html for SPA routing fallback
+async fn spa_fallback(_req: HttpRequest) -> ActixResult<NamedFile> {
+    NamedFile::open("./static/index.html")
+        .map_err(|e| {
+            log::error!("Failed to open index.html: {}", e);
+            actix_web::error::ErrorInternalServerError(e)
+        })
 }
 
 async fn console_log_handler(
@@ -384,8 +393,10 @@ async fn main() -> std::io::Result<()> {
             .route("/api/workspaces/{name}/branches/{branch}/rebase", web::post().to(workspace::rebase_branch))
             .route("/api/workspaces/{name}/branches/{branch}/checkout", web::post().to(workspace::change_base_branch))
             .route("/api/workspaces/{name}/branches/{branch}/rename", web::post().to(workspace::rename_branch))
-            // Static files (must be last)
-            .service(Files::new("/", "./static").index_file("index.html"))
+            // Static files
+            .service(Files::new("/static", "./static"))
+            // SPA fallback for all other routes (must be last)
+            .default_service(web::to(spa_fallback))
     })
     .bind("0.0.0.0:8080")?
     .run()

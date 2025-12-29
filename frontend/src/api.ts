@@ -2,6 +2,35 @@ import { logger } from './logger';
 import { authManager } from './auth';
 import type { Workspace, Branch, FileEntry } from './types';
 
+/**
+ * Resolve a relative file path against a base path (markdown file location)
+ * e.g., resolveFilePath('docs/runbook.md', './src/utils.js') => 'docs/src/utils.js'
+ * e.g., resolveFilePath('docs/runbook.md', '../lib/utils.js') => 'lib/utils.js'
+ */
+export function resolveFilePath(markdownPath: string, relativePath: string): string {
+  // Get the directory containing the markdown file
+  const lastSlash = markdownPath.lastIndexOf('/');
+  const baseDir = lastSlash >= 0 ? markdownPath.substring(0, lastSlash) : '';
+
+  // Combine base directory with relative path
+  const combined = baseDir ? `${baseDir}/${relativePath}` : relativePath;
+
+  // Normalize the path (resolve . and ..)
+  const parts = combined.split('/');
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === '' || part === '.') {
+      continue;
+    } else if (part === '..') {
+      resolved.pop();
+    } else {
+      resolved.push(part);
+    }
+  }
+
+  return resolved.join('/');
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -120,6 +149,38 @@ class ApiClient {
       `/api/workspaces/${encodeURIComponent(workspace)}/branches/${encodeURIComponent(branch)}/file?path=${encodeURIComponent(path)}`,
       { content }
     );
+  }
+
+  /**
+   * Read an embedded file relative to a markdown file
+   */
+  async readEmbeddedFile(
+    workspace: string,
+    branch: string,
+    markdownPath: string,
+    relativePath: string
+  ): Promise<{ path: string; content: string; exists: true } | { path: string; exists: false }> {
+    const resolvedPath = resolveFilePath(markdownPath, relativePath);
+    try {
+      const result = await this.readFile(workspace, branch, resolvedPath);
+      return { ...result, exists: true as const };
+    } catch {
+      return { path: resolvedPath, exists: false as const };
+    }
+  }
+
+  /**
+   * Save an embedded file relative to a markdown file
+   */
+  async saveEmbeddedFile(
+    workspace: string,
+    branch: string,
+    markdownPath: string,
+    relativePath: string,
+    content: string
+  ): Promise<void> {
+    const resolvedPath = resolveFilePath(markdownPath, relativePath);
+    return this.saveFile(workspace, branch, resolvedPath, content);
   }
 
   // Git operations

@@ -195,7 +195,7 @@ async function runHttpTests(): Promise<void> {
 
   // Test: JavaScript bundle is served
   await runTest('JavaScript bundle is served', async () => {
-    const response = await fetch(`${SERVER_URL}/bundle.js`);
+    const response = await fetch(`${SERVER_URL}/static/bundle.js`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -207,7 +207,7 @@ async function runHttpTests(): Promise<void> {
 
   // Test: CSS bundle is served
   await runTest('CSS bundle is served', async () => {
-    const response = await fetch(`${SERVER_URL}/bundle.css`);
+    const response = await fetch(`${SERVER_URL}/static/bundle.css`);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }

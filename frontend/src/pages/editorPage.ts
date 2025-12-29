@@ -1,7 +1,8 @@
 import { logger } from '../logger';
 import { apiClient } from '../api';
 import { router } from '../router';
-import { createEditor, getEditorContent, setEditorContent, setCurrentRunbook } from '../editor';
+import { createEditor, getEditorContent, setEditorContent, setCurrentRunbook, getEditorView, refreshFilesystemContent } from '../editor';
+import { setFileSyncContext, clearFileSyncContext } from '../fileSync';
 import { wsConnection } from '../websocket';
 import { terminalManager } from '../terminal';
 import type { RouteParams } from '../types';
@@ -152,6 +153,9 @@ async function loadFile(): Promise<void> {
     const runbookId = `${currentWorkspace}/${currentBranch}/${currentFilepath}`;
     setCurrentRunbook(runbookId);
 
+    // Set file sync context for embedded file operations
+    setFileSyncContext(currentWorkspace, currentBranch, currentFilepath);
+
     const { content } = await apiClient.readFile(currentWorkspace, currentBranch, currentFilepath);
     createEditor(editorEl, content);
     hasUnsavedChanges = false;
@@ -162,8 +166,18 @@ async function loadFile(): Promise<void> {
       hasUnsavedChanges = true;
       updateStatus('Unsaved changes');
     });
+
+    // Refresh embedded file content when window gains focus
+    window.addEventListener('focus', handleWindowFocus);
   } catch (err) {
     editorEl.innerHTML = `<p class="error">Failed to load file: ${err}</p>`;
+  }
+}
+
+function handleWindowFocus(): void {
+  const view = getEditorView();
+  if (view) {
+    refreshFilesystemContent(view);
   }
 }
 

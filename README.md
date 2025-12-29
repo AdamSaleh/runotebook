@@ -94,6 +94,57 @@ Config file location: `~/.config/runotepad/config.json`
 
 ## Testing
 
+### Unit Tests (Rust Backend)
+
+Run all Rust unit tests:
+```bash
+cargo test
+```
+
+Run tests with output:
+```bash
+cargo test -- --nocapture
+```
+
+Run a specific test:
+```bash
+cargo test test_name
+```
+
+### Code Coverage
+
+Generate code coverage reports using `cargo-llvm-cov`:
+
+#### Prerequisites
+```bash
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+
+# Install llvm-tools (if using rustup)
+rustup component add llvm-tools-preview
+```
+
+#### Generate Coverage
+
+HTML report (opens in browser):
+```bash
+./coverage.sh html
+```
+
+LCOV format (for CI/CD):
+```bash
+./coverage.sh lcov
+```
+
+Text summary (to stdout):
+```bash
+./coverage.sh text
+# or simply
+cargo llvm-cov --all-features --workspace
+```
+
+The HTML report will be generated at `target/llvm-cov/html/index.html`.
+
 ### E2E Tests
 
 The e2e tests build both frontend and backend, start the server, and run integration tests.

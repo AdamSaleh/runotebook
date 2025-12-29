@@ -6,6 +6,7 @@ import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, syntaxTree,
 import { oneDark } from '@codemirror/theme-one-dark';
 import { logger } from './logger';
 import { terminalManager } from './terminal';
+import { fileSyncExtension, refreshFilesystemContent } from './fileSync';
 
 // Current runbook identifier for default session naming
 let currentRunbookId: string | null = null;
@@ -29,7 +30,8 @@ function isShellLanguage(lang: string): boolean {
 class RunButtonMarker extends GutterMarker {
   constructor(
     private code: string,
-    private sessionName?: string
+    private sessionName?: string,
+    private outputBlock?: string
   ) {
     super();
   }
@@ -52,25 +54,26 @@ class RunButtonMarker extends GutterMarker {
 
   private runCode(): void {
     const sessionName = this.sessionName || getDefaultSessionName();
-    logger.info(`Running code in session: ${sessionName}`);
+    logger.info(`Running code in session: ${sessionName}${this.outputBlock ? ` (capturing to: ${this.outputBlock})` : ''}`);
     logger.debug('Code to execute:', this.code);
 
     // Check for existing named session, reuse or create new
     const existingId = terminalManager.getNamedSession(sessionName);
     if (existingId) {
       logger.debug(`Reusing session "${sessionName}": ${existingId}`);
-      terminalManager.sendInput(existingId, this.code + '\n');
+      terminalManager.sendInput(existingId, this.code + '\n', this.outputBlock);
       terminalManager.scrollSessionIntoView(existingId);
       return;
     }
 
-    terminalManager.createTerminal(this.code, sessionName);
+    terminalManager.createTerminal(this.code, sessionName, this.outputBlock);
   }
 
   eq(other: GutterMarker): boolean {
     return other instanceof RunButtonMarker &&
       other.code === this.code &&
-      other.sessionName === this.sessionName;
+      other.sessionName === this.sessionName &&
+      other.outputBlock === this.outputBlock;
   }
 }
 
@@ -94,13 +97,19 @@ function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
 
         if (!isShellLanguage(lang)) return;
 
-        // Parse session name from info string
+        // Parse session name and output block from info string
         let sessionName: string | undefined;
+        let outputBlock: string | undefined;
         for (let i = 1; i < parts.length; i++) {
-          const match = parts[i].match(/^session=(.+)$/);
-          if (match) {
-            sessionName = match[1];
-            break;
+          const sessionMatch = parts[i].match(/^session=(.+)$/);
+          if (sessionMatch) {
+            sessionName = sessionMatch[1];
+            continue;
+          }
+          const outMatch = parts[i].match(/^out=(.+)$/);
+          if (outMatch) {
+            outputBlock = outMatch[1];
+            continue;
           }
         }
 
@@ -115,7 +124,7 @@ function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
 
         // Add marker at the start of the fenced code block
         const line = state.doc.lineAt(node.from);
-        markers.push(new RunButtonMarker(code, sessionName).range(line.from));
+        markers.push(new RunButtonMarker(code, sessionName, outputBlock).range(line.from));
       }
     }
   });
@@ -208,6 +217,7 @@ export function createEditor(
         codeBlockField,
         runGutter,
         syntaxUpdatePlugin,
+        fileSyncExtension(),
         lineNumbers(),
         highlightActiveLine(),
         highlightActiveLineGutter(),
@@ -226,6 +236,10 @@ export function createEditor(
 
   logger.info('CodeMirror editor created successfully');
   currentEditor = editor;
+
+  // Set up terminal manager callback for updating named blocks
+  terminalManager.setUpdateBlockCallback(updateNamedBlock);
+
   return editor;
 }
 
@@ -244,3 +258,76 @@ export function setEditorContent(content: string): void {
     });
   }
 }
+
+export function getEditorView(): EditorView | null {
+  return currentEditor;
+}
+
+/**
+ * Update a named code block's content
+ */
+export function updateNamedBlock(blockName: string, content: string): void {
+  if (!currentEditor) {
+    logger.error('No editor available to update named block');
+    return;
+  }
+
+  const state = currentEditor.state;
+  const tree = syntaxTree(state);
+
+  // Find the code block with name=blockName
+  let targetBlock: { from: number; to: number; contentFrom: number; contentTo: number } | null = null;
+
+  tree.iterate({
+    enter(node) {
+      if (targetBlock) return false; // Already found
+
+      if (node.name === 'FencedCode') {
+        const codeInfoNode = node.node.getChild('CodeInfo');
+        if (!codeInfoNode) return;
+
+        const infoText = state.doc.sliceString(codeInfoNode.from, codeInfoNode.to);
+        const parts = infoText.trim().split(/\s+/);
+
+        // Look for name= annotation
+        for (let i = 1; i < parts.length; i++) {
+          const match = parts[i].match(/^name=(.+)$/);
+          if (match && match[1] === blockName) {
+            const codeTextNode = node.node.getChild('CodeText');
+            if (codeTextNode) {
+              targetBlock = {
+                from: node.from,
+                to: node.to,
+                contentFrom: codeTextNode.from,
+                contentTo: codeTextNode.to,
+              };
+              return false; // Stop iteration
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!targetBlock) {
+    logger.warn(`Named block not found: ${blockName}`);
+    return;
+  }
+
+  logger.info(`Updating named block: ${blockName} with ${content.length} chars`);
+
+  // Extract values to work around TypeScript control flow analysis limitation
+  const { contentFrom, contentTo } = targetBlock;
+
+  // Replace the content
+  currentEditor.dispatch({
+    changes: {
+      from: contentFrom,
+      to: contentTo,
+      insert: content,
+    }
+  });
+}
+
+// Re-export for convenience
+export { refreshFilesystemContent } from './fileSync';
