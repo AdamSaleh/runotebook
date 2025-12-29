@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod file_ops;
 mod git_ops;
+mod lsp;
 mod workspace;
 
 use actix_files::{Files, NamedFile};
@@ -66,6 +67,14 @@ enum WsMessage {
     },
     #[serde(rename = "close")]
     Close { session_id: String },
+    #[serde(rename = "completion")]
+    Completion {
+        request_id: String,
+        workspace: String,
+        branch: String,
+        markdown_path: String,
+        context: lsp::CompletionContext,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -79,6 +88,12 @@ enum WsResponse {
     Closed { session_id: String },
     #[serde(rename = "error")]
     Error { message: String },
+    #[serde(rename = "completion_response")]
+    CompletionResponse {
+        request_id: String,
+        items: Vec<lsp::CompletionItem>,
+        is_incomplete: bool,
+    },
 }
 
 struct PtySession {
@@ -129,6 +144,7 @@ async fn ws_handler(
     };
 
     let state = state.get_ref().clone();
+    let config = config.get_ref().clone();
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
     // Spawn task to send messages from rx to websocket
@@ -220,6 +236,17 @@ async fn ws_handler(
                                             let mut sessions = state.sessions.lock().await;
                                             sessions.remove(&session_id);
                                             let resp = WsResponse::Closed { session_id };
+                                            let _ = session.text(serde_json::to_string(&resp).unwrap()).await;
+                                        }
+                                        WsMessage::Completion { request_id, workspace, branch, markdown_path, context } => {
+                                            log::debug!("Completion request: {:?} for {}/{}/{}", context.context_type, workspace, branch, markdown_path);
+                                            let lsp_handler = lsp::LspHandler::new(config.clone());
+                                            let result = lsp_handler.handle_completion(&workspace, &branch, &markdown_path, context);
+                                            let resp = WsResponse::CompletionResponse {
+                                                request_id,
+                                                items: result.items,
+                                                is_incomplete: result.is_incomplete,
+                                            };
                                             let _ = session.text(serde_json::to_string(&resp).unwrap()).await;
                                         }
                                     }

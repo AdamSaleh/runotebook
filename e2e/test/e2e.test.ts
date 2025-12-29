@@ -427,6 +427,247 @@ async function runWebSocketTests(): Promise<void> {
   });
 }
 
+async function runLspTests(): Promise<void> {
+  // Test: LSP completion request returns valid response format
+  await runTest('LSP completion request returns valid response', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(getAuthenticatedWsUrl());
+      const requestId = `test-${Date.now()}`;
+
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Completion request timeout'));
+      }, 5000);
+
+      ws.on('open', () => {
+        // Send a completion request for shell commands
+        ws.send(JSON.stringify({
+          type: 'completion',
+          request_id: requestId,
+          workspace: 'test',
+          branch: 'main',
+          markdown_path: 'test.md',
+          context: {
+            context_type: 'shell_command',
+            prefix: 'ec',
+          },
+        }));
+      });
+
+      ws.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          if (msg.type === 'completion_response' && msg.request_id === requestId) {
+            clearTimeout(timeout);
+
+            // Validate response structure
+            if (!Array.isArray(msg.items)) {
+              ws.close();
+              reject(new Error('Expected items to be an array'));
+              return;
+            }
+
+            if (typeof msg.is_incomplete !== 'boolean') {
+              ws.close();
+              reject(new Error('Expected is_incomplete to be boolean'));
+              return;
+            }
+
+            log(`Received ${msg.items.length} completions`);
+            ws.close();
+            resolve();
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new Error(`WebSocket error: ${err.message}`));
+      });
+    });
+  });
+
+  // Test: Shell completion returns results for common prefix
+  await runTest('Shell completion returns results', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(getAuthenticatedWsUrl());
+      const requestId = `test-shell-${Date.now()}`;
+
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Shell completion timeout'));
+      }, 5000);
+
+      ws.on('open', () => {
+        // Request shell completions for 'ech' which should match 'echo'
+        ws.send(JSON.stringify({
+          type: 'completion',
+          request_id: requestId,
+          workspace: 'test',
+          branch: 'main',
+          markdown_path: 'test.md',
+          context: {
+            context_type: 'shell_command',
+            prefix: 'ech',
+          },
+        }));
+      });
+
+      ws.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          if (msg.type === 'completion_response' && msg.request_id === requestId) {
+            clearTimeout(timeout);
+
+            // Should have at least 'echo' in results
+            const hasEcho = msg.items.some((item: { label: string }) =>
+              item.label === 'echo' || item.label.startsWith('echo')
+            );
+
+            if (!hasEcho) {
+              log(`Received items: ${JSON.stringify(msg.items)}`);
+              ws.close();
+              reject(new Error('Expected "echo" in shell completions'));
+              return;
+            }
+
+            log(`Shell completion returned ${msg.items.length} items including echo`);
+            ws.close();
+            resolve();
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new Error(`WebSocket error: ${err.message}`));
+      });
+    });
+  });
+
+  // Test: Block name completion extracts names from document
+  await runTest('Block name completion works', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(getAuthenticatedWsUrl());
+      const requestId = `test-block-${Date.now()}`;
+
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Block name completion timeout'));
+      }, 5000);
+
+      ws.on('open', () => {
+        // Request block name completions with a document containing named blocks
+        ws.send(JSON.stringify({
+          type: 'completion',
+          request_id: requestId,
+          workspace: 'test',
+          branch: 'main',
+          markdown_path: 'test.md',
+          context: {
+            context_type: 'block_name',
+            prefix: 'res',
+            document: '```sh name=result\necho hello\n```\n\n```sh name=response\necho world\n```',
+          },
+        }));
+      });
+
+      ws.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          if (msg.type === 'completion_response' && msg.request_id === requestId) {
+            clearTimeout(timeout);
+
+            // Should have both 'result' and 'response' in results (both start with 'res')
+            const labels = msg.items.map((item: { label: string }) => item.label);
+
+            if (!labels.includes('result') || !labels.includes('response')) {
+              log(`Received labels: ${JSON.stringify(labels)}`);
+              ws.close();
+              reject(new Error('Expected "result" and "response" in block completions'));
+              return;
+            }
+
+            log(`Block name completion returned: ${labels.join(', ')}`);
+            ws.close();
+            resolve();
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new Error(`WebSocket error: ${err.message}`));
+      });
+    });
+  });
+
+  // Test: Empty prefix returns results gracefully
+  await runTest('Empty prefix handled gracefully', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(getAuthenticatedWsUrl());
+      const requestId = `test-empty-${Date.now()}`;
+
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('Empty prefix completion timeout'));
+      }, 5000);
+
+      ws.on('open', () => {
+        // Request completions with empty prefix
+        ws.send(JSON.stringify({
+          type: 'completion',
+          request_id: requestId,
+          workspace: 'test',
+          branch: 'main',
+          markdown_path: 'test.md',
+          context: {
+            context_type: 'shell_command',
+            prefix: '',
+          },
+        }));
+      });
+
+      ws.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+
+          if (msg.type === 'completion_response' && msg.request_id === requestId) {
+            clearTimeout(timeout);
+
+            // Should return valid response (possibly empty items)
+            if (!Array.isArray(msg.items)) {
+              ws.close();
+              reject(new Error('Expected items to be an array'));
+              return;
+            }
+
+            log(`Empty prefix returned ${msg.items.length} items`);
+            ws.close();
+            resolve();
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(new Error(`WebSocket error: ${err.message}`));
+      });
+    });
+  });
+}
+
 // Main test runner
 async function main(): Promise<void> {
   console.log('');
@@ -456,6 +697,10 @@ async function main(): Promise<void> {
     // Run WebSocket tests
     log('Running WebSocket tests...');
     await runWebSocketTests();
+
+    // Run LSP completion tests
+    log('Running LSP completion tests...');
+    await runLspTests();
 
   } finally {
     // Cleanup

@@ -20,6 +20,7 @@ env_logger = "=0.10.0"
 dirs = "5.0"
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
+regex = "1"
 
 [dev-dependencies]
 tempfile = "3.8"

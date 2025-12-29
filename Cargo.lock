@@ -1292,6 +1292,7 @@ dependencies = [
  "log",
  "portable-pty",
  "rand",
+ "regex",
  "serde",
  "serde_json",
  "serial_test",

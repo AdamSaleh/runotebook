@@ -3,6 +3,7 @@ import { apiClient } from '../api';
 import { router } from '../router';
 import { createEditor, getEditorContent, setEditorContent, setCurrentRunbook, getEditorView, refreshFilesystemContent } from '../editor';
 import { setFileSyncContext, clearFileSyncContext } from '../fileSync';
+import { setCompletionContext } from '../autocomplete';
 import { wsConnection } from '../websocket';
 import { terminalManager } from '../terminal';
 import type { RouteParams } from '../types';
@@ -155,6 +156,9 @@ async function loadFile(): Promise<void> {
 
     // Set file sync context for embedded file operations
     setFileSyncContext(currentWorkspace, currentBranch, currentFilepath);
+
+    // Set completion context for code completion
+    setCompletionContext(currentWorkspace, currentBranch, currentFilepath);
 
     const { content } = await apiClient.readFile(currentWorkspace, currentBranch, currentFilepath);
     createEditor(editorEl, content);

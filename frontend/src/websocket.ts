@@ -1,6 +1,7 @@
 import { logger } from './logger';
 import { authManager } from './auth';
 import { WsClientMessage, WsServerMessage } from './types';
+import { handleCompletionResponse } from './autocomplete';
 
 export type MessageHandler = (msg: WsServerMessage) => void;
 
@@ -56,6 +57,13 @@ class WebSocketConnection {
       logger.debug('Received message:', event.data);
       try {
         const msg = JSON.parse(event.data) as WsServerMessage;
+
+        // Handle completion responses separately
+        if (msg.type === 'completion_response') {
+          handleCompletionResponse(msg);
+          return;
+        }
+
         if (this.messageHandler) {
           this.messageHandler(msg);
         }
