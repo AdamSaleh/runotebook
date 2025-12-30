@@ -6,7 +6,7 @@ import { syntaxHighlighting, defaultHighlightStyle, bracketMatching, syntaxTree,
 import { oneDark } from '@codemirror/theme-one-dark';
 import { logger } from './logger';
 import { terminalManager } from './terminal';
-import { fileSyncExtension, refreshFilesystemContent } from './fileSync';
+import { fileSyncExtension } from './fileSync';
 import { autocompleteExtension } from './autocomplete';
 
 // Current runbook identifier for default session naming

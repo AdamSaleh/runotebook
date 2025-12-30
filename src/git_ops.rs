@@ -162,11 +162,7 @@ pub fn list_branches(repo_path: &Path) -> GitResult<Vec<String>> {
 }
 
 /// Stage and commit files in a worktree
-pub fn commit_files(
-    worktree_path: &Path,
-    files: &[String],
-    message: &str,
-) -> GitResult<String> {
+pub fn commit_files(worktree_path: &Path, files: &[String], message: &str) -> GitResult<String> {
     log::info!("Committing {} files in {:?}", files.len(), worktree_path);
 
     // Stage files
@@ -205,11 +201,7 @@ pub fn fetch_origin(repo_path: &Path) -> GitResult<()> {
 }
 
 /// Pull updates for a specific branch (fetch + merge)
-pub fn pull_branch(
-    repo_path: &Path,
-    worktree_path: &Path,
-    _branch_name: &str,
-) -> GitResult<()> {
+pub fn pull_branch(repo_path: &Path, worktree_path: &Path, _branch_name: &str) -> GitResult<()> {
     log::info!("Pulling updates in {:?}", worktree_path);
 
     // Fetch in bare repo first
@@ -223,31 +215,24 @@ pub fn pull_branch(
 }
 
 /// Rebase current branch on top of base branch
-pub fn rebase_on_base(
-    worktree_path: &Path,
-    base_branch: &str,
-) -> GitResult<()> {
-    log::info!(
-        "Rebasing {:?} on top of {}",
-        worktree_path,
-        base_branch
-    );
+pub fn rebase_on_base(worktree_path: &Path, base_branch: &str) -> GitResult<()> {
+    log::info!("Rebasing {:?} on top of {}", worktree_path, base_branch);
 
     // Fetch latest first
     run_git(&["fetch", "origin", base_branch], worktree_path)?;
 
     // Rebase
-    run_git(&["rebase", &format!("origin/{}", base_branch)], worktree_path)?;
+    run_git(
+        &["rebase", &format!("origin/{}", base_branch)],
+        worktree_path,
+    )?;
 
     log::info!("Rebase completed successfully");
     Ok(())
 }
 
 /// Rename a branch
-pub fn rename_branch(
-    worktree_path: &Path,
-    new_name: &str,
-) -> GitResult<()> {
+pub fn rename_branch(worktree_path: &Path, new_name: &str) -> GitResult<()> {
     log::info!("Renaming branch to {} in {:?}", new_name, worktree_path);
 
     run_git(&["branch", "-m", new_name], worktree_path)?;

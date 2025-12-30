@@ -184,6 +184,7 @@ class TerminalManager {
 
   private stripAnsi(text: string): string {
     // Remove ANSI escape codes (colors, cursor movement, etc.)
+    // eslint-disable-next-line no-control-regex
     return text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
   }
 

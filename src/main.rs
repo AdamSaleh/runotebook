@@ -6,7 +6,9 @@ mod lsp;
 mod workspace;
 
 use actix_files::{Files, NamedFile};
-use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result as ActixResult};
+use actix_web::{
+    middleware, web, App, HttpRequest, HttpResponse, HttpServer, Result as ActixResult,
+};
 use futures::StreamExt;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use serde::{Deserialize, Serialize};
@@ -27,16 +29,13 @@ struct ConsoleLogRequest {
 
 /// Serve index.html for SPA routing fallback
 async fn spa_fallback(_req: HttpRequest) -> ActixResult<NamedFile> {
-    NamedFile::open("./static/index.html")
-        .map_err(|e| {
-            log::error!("Failed to open index.html: {}", e);
-            actix_web::error::ErrorInternalServerError(e)
-        })
+    NamedFile::open("./static/index.html").map_err(|e| {
+        log::error!("Failed to open index.html: {}", e);
+        actix_web::error::ErrorInternalServerError(e)
+    })
 }
 
-async fn console_log_handler(
-    body: web::Json<ConsoleLogRequest>,
-) -> HttpResponse {
+async fn console_log_handler(body: web::Json<ConsoleLogRequest>) -> HttpResponse {
     let level = body.level.as_str();
     let msg = &body.message;
     let ts = body.timestamp.as_deref().unwrap_or("");
@@ -116,7 +115,11 @@ async fn ws_handler(
         let mut parts = pair.splitn(2, '=');
         let key = parts.next()?;
         let value = parts.next()?;
-        if key == "token" { Some(value.to_string()) } else { None }
+        if key == "token" {
+            Some(value.to_string())
+        } else {
+            None
+        }
     }) {
         if !config.verify_token(&token) {
             return Ok(HttpResponse::Unauthorized().json(serde_json::json!({
@@ -166,115 +169,158 @@ async fn ws_handler(
         log::info!("Started WebSocket receiver task");
         while let Some(result) = msg_stream.next().await {
             match result {
-                Ok(msg) => {
-                    match msg {
-                        actix_ws::Message::Text(text) => {
-                            let text_str = text.to_string();
-                            log::info!("Received WS message: {}", text_str);
+                Ok(msg) => match msg {
+                    actix_ws::Message::Text(text) => {
+                        let text_str = text.to_string();
+                        log::info!("Received WS message: {}", text_str);
 
-                            match serde_json::from_str::<WsMessage>(&text_str) {
-                                Ok(ws_msg) => {
-                                    log::debug!("Parsed message: {:?}", ws_msg);
-                                    match ws_msg {
-                                        WsMessage::Create { id } => {
-                                            let session_id = id.unwrap_or_else(|| Uuid::new_v4().to_string());
-                                            log::info!("Creating PTY session: {}", session_id);
+                        match serde_json::from_str::<WsMessage>(&text_str) {
+                            Ok(ws_msg) => {
+                                log::debug!("Parsed message: {:?}", ws_msg);
+                                match ws_msg {
+                                    WsMessage::Create { id } => {
+                                        let session_id =
+                                            id.unwrap_or_else(|| Uuid::new_v4().to_string());
+                                        log::info!("Creating PTY session: {}", session_id);
 
-                                            match create_pty_session(&session_id, &state, tx.clone()).await {
-                                                Ok(_) => {
-                                                    log::info!("PTY session created successfully: {}", session_id);
-                                                    let resp = WsResponse::Created {
-                                                        session_id: session_id.clone(),
-                                                    };
-                                                    let resp_json = serde_json::to_string(&resp).unwrap();
-                                                    log::debug!("Sending response: {}", resp_json);
-                                                    if let Err(e) = session.text(resp_json).await {
-                                                        log::error!("Failed to send created response: {:?}", e);
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    log::error!("Failed to create PTY session: {:?}", e);
-                                                    let resp = WsResponse::Error {
-                                                        message: e.to_string(),
-                                                    };
-                                                    let _ = session
-                                                        .text(serde_json::to_string(&resp).unwrap())
-                                                        .await;
-                                                }
-                                            }
-                                        }
-                                        WsMessage::Input { session_id, data } => {
-                                            log::debug!("Input for session {}: {:?}", session_id, data);
-                                            let mut sessions = state.sessions.lock().await;
-                                            if let Some(pty_session) = sessions.get_mut(&session_id) {
-                                                if let Err(e) = pty_session.writer.write_all(data.as_bytes()) {
-                                                    log::error!("Failed to write to PTY: {:?}", e);
-                                                }
-                                                if let Err(e) = pty_session.writer.flush() {
-                                                    log::error!("Failed to flush PTY: {:?}", e);
-                                                }
-                                            } else {
-                                                log::warn!("Session not found: {}", session_id);
-                                            }
-                                        }
-                                        WsMessage::Resize { session_id, cols, rows } => {
-                                            log::debug!("Resize session {} to {}x{}", session_id, cols, rows);
-                                            let sessions = state.sessions.lock().await;
-                                            if let Some(pty_session) = sessions.get(&session_id) {
-                                                if let Err(e) = pty_session.master.resize(PtySize {
-                                                    rows,
-                                                    cols,
-                                                    pixel_width: 0,
-                                                    pixel_height: 0,
-                                                }) {
-                                                    log::error!("Failed to resize PTY: {:?}", e);
+                                        match create_pty_session(&session_id, &state, tx.clone())
+                                            .await
+                                        {
+                                            Ok(_) => {
+                                                log::info!(
+                                                    "PTY session created successfully: {}",
+                                                    session_id
+                                                );
+                                                let resp = WsResponse::Created {
+                                                    session_id: session_id.clone(),
+                                                };
+                                                let resp_json =
+                                                    serde_json::to_string(&resp).unwrap();
+                                                log::debug!("Sending response: {}", resp_json);
+                                                if let Err(e) = session.text(resp_json).await {
+                                                    log::error!(
+                                                        "Failed to send created response: {:?}",
+                                                        e
+                                                    );
                                                 }
                                             }
-                                        }
-                                        WsMessage::Close { session_id } => {
-                                            log::info!("Closing session: {}", session_id);
-                                            let mut sessions = state.sessions.lock().await;
-                                            sessions.remove(&session_id);
-                                            let resp = WsResponse::Closed { session_id };
-                                            let _ = session.text(serde_json::to_string(&resp).unwrap()).await;
-                                        }
-                                        WsMessage::Completion { request_id, workspace, branch, markdown_path, context } => {
-                                            log::debug!("Completion request: {:?} for {}/{}/{}", context.context_type, workspace, branch, markdown_path);
-                                            let lsp_handler = lsp::LspHandler::new(config.clone());
-                                            let result = lsp_handler.handle_completion(&workspace, &branch, &markdown_path, context);
-                                            let resp = WsResponse::CompletionResponse {
-                                                request_id,
-                                                items: result.items,
-                                                is_incomplete: result.is_incomplete,
-                                            };
-                                            let _ = session.text(serde_json::to_string(&resp).unwrap()).await;
+                                            Err(e) => {
+                                                log::error!(
+                                                    "Failed to create PTY session: {:?}",
+                                                    e
+                                                );
+                                                let resp = WsResponse::Error {
+                                                    message: e.to_string(),
+                                                };
+                                                let _ = session
+                                                    .text(serde_json::to_string(&resp).unwrap())
+                                                    .await;
+                                            }
                                         }
                                     }
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to parse WS message: {:?}", e);
+                                    WsMessage::Input { session_id, data } => {
+                                        log::debug!("Input for session {}: {:?}", session_id, data);
+                                        let mut sessions = state.sessions.lock().await;
+                                        if let Some(pty_session) = sessions.get_mut(&session_id) {
+                                            if let Err(e) =
+                                                pty_session.writer.write_all(data.as_bytes())
+                                            {
+                                                log::error!("Failed to write to PTY: {:?}", e);
+                                            }
+                                            if let Err(e) = pty_session.writer.flush() {
+                                                log::error!("Failed to flush PTY: {:?}", e);
+                                            }
+                                        } else {
+                                            log::warn!("Session not found: {}", session_id);
+                                        }
+                                    }
+                                    WsMessage::Resize {
+                                        session_id,
+                                        cols,
+                                        rows,
+                                    } => {
+                                        log::debug!(
+                                            "Resize session {} to {}x{}",
+                                            session_id,
+                                            cols,
+                                            rows
+                                        );
+                                        let sessions = state.sessions.lock().await;
+                                        if let Some(pty_session) = sessions.get(&session_id) {
+                                            if let Err(e) = pty_session.master.resize(PtySize {
+                                                rows,
+                                                cols,
+                                                pixel_width: 0,
+                                                pixel_height: 0,
+                                            }) {
+                                                log::error!("Failed to resize PTY: {:?}", e);
+                                            }
+                                        }
+                                    }
+                                    WsMessage::Close { session_id } => {
+                                        log::info!("Closing session: {}", session_id);
+                                        let mut sessions = state.sessions.lock().await;
+                                        sessions.remove(&session_id);
+                                        let resp = WsResponse::Closed { session_id };
+                                        let _ = session
+                                            .text(serde_json::to_string(&resp).unwrap())
+                                            .await;
+                                    }
+                                    WsMessage::Completion {
+                                        request_id,
+                                        workspace,
+                                        branch,
+                                        markdown_path,
+                                        context,
+                                    } => {
+                                        log::debug!(
+                                            "Completion request: {:?} for {}/{}/{}",
+                                            context.context_type,
+                                            workspace,
+                                            branch,
+                                            markdown_path
+                                        );
+                                        let lsp_handler = lsp::LspHandler::new(config.clone());
+                                        let result = lsp_handler.handle_completion(
+                                            &workspace,
+                                            &branch,
+                                            &markdown_path,
+                                            context,
+                                        );
+                                        let resp = WsResponse::CompletionResponse {
+                                            request_id,
+                                            items: result.items,
+                                            is_incomplete: result.is_incomplete,
+                                        };
+                                        let _ = session
+                                            .text(serde_json::to_string(&resp).unwrap())
+                                            .await;
+                                    }
                                 }
                             }
-                        }
-                        actix_ws::Message::Binary(data) => {
-                            log::debug!("Received binary message: {} bytes", data.len());
-                        }
-                        actix_ws::Message::Ping(data) => {
-                            log::trace!("Received ping");
-                            let _ = session.pong(&data).await;
-                        }
-                        actix_ws::Message::Pong(_) => {
-                            log::trace!("Received pong");
-                        }
-                        actix_ws::Message::Close(reason) => {
-                            log::info!("WebSocket close received: {:?}", reason);
-                            break;
-                        }
-                        _ => {
-                            log::debug!("Received other message type");
+                            Err(e) => {
+                                log::error!("Failed to parse WS message: {:?}", e);
+                            }
                         }
                     }
-                }
+                    actix_ws::Message::Binary(data) => {
+                        log::debug!("Received binary message: {} bytes", data.len());
+                    }
+                    actix_ws::Message::Ping(data) => {
+                        log::trace!("Received ping");
+                        let _ = session.pong(&data).await;
+                    }
+                    actix_ws::Message::Pong(_) => {
+                        log::trace!("Received pong");
+                    }
+                    actix_ws::Message::Close(reason) => {
+                        log::info!("WebSocket close received: {:?}", reason);
+                        break;
+                    }
+                    _ => {
+                        log::debug!("Received other message type");
+                    }
+                },
                 Err(e) => {
                     log::error!("WebSocket receive error: {:?}", e);
                     break;
@@ -375,7 +421,10 @@ async fn main() -> std::io::Result<()> {
         Ok(c) => Arc::new(c),
         Err(e) => {
             log::error!("Failed to initialize config: {}", e);
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ));
         }
     };
 
@@ -383,7 +432,10 @@ async fn main() -> std::io::Result<()> {
     log::info!("Access token: {}", config.get_token());
     log::info!("");
     log::info!("Starting server at http://0.0.0.0:8080");
-    log::info!("Access with token: http://127.0.0.1:8080/?token={}", config.get_token());
+    log::info!(
+        "Access with token: http://127.0.0.1:8080/?token={}",
+        config.get_token()
+    );
     log::info!("");
 
     let state = Arc::new(AppState {
@@ -403,23 +455,65 @@ async fn main() -> std::io::Result<()> {
             .route("/api/auth/check", web::get().to(auth::auth_check_handler))
             // Workspace endpoints
             .route("/api/workspaces", web::get().to(workspace::list_workspaces))
-            .route("/api/workspaces", web::post().to(workspace::create_workspace))
-            .route("/api/workspaces/{name}", web::delete().to(workspace::delete_workspace))
+            .route(
+                "/api/workspaces",
+                web::post().to(workspace::create_workspace),
+            )
+            .route(
+                "/api/workspaces/{name}",
+                web::delete().to(workspace::delete_workspace),
+            )
             // Branch endpoints
-            .route("/api/workspaces/{name}/branches", web::get().to(workspace::list_branches))
-            .route("/api/workspaces/{name}/branches", web::post().to(workspace::create_branch))
-            .route("/api/workspaces/{name}/branches/{branch}", web::delete().to(workspace::delete_branch))
+            .route(
+                "/api/workspaces/{name}/branches",
+                web::get().to(workspace::list_branches),
+            )
+            .route(
+                "/api/workspaces/{name}/branches",
+                web::post().to(workspace::create_branch),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}",
+                web::delete().to(workspace::delete_branch),
+            )
             // File endpoints
-            .route("/api/workspaces/{name}/branches/{branch}/files", web::get().to(workspace::list_files))
-            .route("/api/workspaces/{name}/branches/{branch}/file", web::get().to(workspace::read_file))
-            .route("/api/workspaces/{name}/branches/{branch}/file", web::put().to(workspace::save_file))
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/files",
+                web::get().to(workspace::list_files),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/file",
+                web::get().to(workspace::read_file),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/file",
+                web::put().to(workspace::save_file),
+            )
             // Git operation endpoints
-            .route("/api/workspaces/{name}/branches/{branch}/commit", web::post().to(workspace::commit_files))
-            .route("/api/workspaces/{name}/branches/{branch}/push", web::post().to(workspace::push_branch))
-            .route("/api/workspaces/{name}/branches/{branch}/pull", web::post().to(workspace::pull_branch))
-            .route("/api/workspaces/{name}/branches/{branch}/rebase", web::post().to(workspace::rebase_branch))
-            .route("/api/workspaces/{name}/branches/{branch}/checkout", web::post().to(workspace::change_base_branch))
-            .route("/api/workspaces/{name}/branches/{branch}/rename", web::post().to(workspace::rename_branch))
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/commit",
+                web::post().to(workspace::commit_files),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/push",
+                web::post().to(workspace::push_branch),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/pull",
+                web::post().to(workspace::pull_branch),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/rebase",
+                web::post().to(workspace::rebase_branch),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/checkout",
+                web::post().to(workspace::change_base_branch),
+            )
+            .route(
+                "/api/workspaces/{name}/branches/{branch}/rename",
+                web::post().to(workspace::rename_branch),
+            )
             // Static files
             .service(Files::new("/static", "./static"))
             // SPA fallback for all other routes (must be last)

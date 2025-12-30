@@ -342,11 +342,11 @@ function computeDecorations(view: EditorView): DecorationSet {
 
 // Decoration field
 const fileSyncDecorations = StateField.define<DecorationSet>({
-  create(state) {
+  create(_state) {
     return Decoration.none;
   },
-  update(decorations, tr) {
-    return decorations;
+  update(_decorations, _tr) {
+    return _decorations;
   },
   provide: f => EditorView.decorations.from(f)
 });
@@ -451,7 +451,7 @@ export async function refreshFilesystemContent(view: EditorView): Promise<void> 
 
   const blocks = findEmbeddedBlocks(view);
 
-  for (const [filePath, block] of blocks) {
+  for (const filePath of blocks.keys()) {
     try {
       const result = await apiClient.readEmbeddedFile(
         currentContext.workspace,

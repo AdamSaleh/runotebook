@@ -1,8 +1,8 @@
 import { logger } from '../logger';
 import { apiClient } from '../api';
 import { router } from '../router';
-import { createEditor, getEditorContent, setEditorContent, setCurrentRunbook, getEditorView, refreshFilesystemContent } from '../editor';
-import { setFileSyncContext, clearFileSyncContext } from '../fileSync';
+import { createEditor, getEditorContent, setCurrentRunbook, getEditorView, refreshFilesystemContent } from '../editor';
+import { setFileSyncContext } from '../fileSync';
 import { setCompletionContext } from '../autocomplete';
 import { wsConnection } from '../websocket';
 import { terminalManager } from '../terminal';

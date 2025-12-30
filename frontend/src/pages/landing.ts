@@ -2,7 +2,6 @@ import { logger } from '../logger';
 import { apiClient } from '../api';
 import { authManager } from '../auth';
 import { router } from '../router';
-import type { Workspace, Branch } from '../types';
 
 export async function renderLanding(container: HTMLElement): Promise<void> {
   logger.info('Rendering landing page');

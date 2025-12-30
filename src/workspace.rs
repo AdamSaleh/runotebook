@@ -232,7 +232,12 @@ pub async fn list_branches(
             let sanitized = sanitize_branch_name(&name);
             let is_worktree = worktrees.contains(&sanitized);
             let worktree_path = if is_worktree {
-                Some(worktrees_path.join(&sanitized).to_string_lossy().to_string())
+                Some(
+                    worktrees_path
+                        .join(&sanitized)
+                        .to_string_lossy()
+                        .to_string(),
+                )
             } else {
                 None
             };

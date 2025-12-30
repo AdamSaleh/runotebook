@@ -12,7 +12,10 @@ pub struct FileEntry {
 }
 
 /// List files in a directory (recursively for markdown files)
-pub fn list_files(base_path: &Path, relative_path: Option<&str>) -> Result<Vec<FileEntry>, std::io::Error> {
+pub fn list_files(
+    base_path: &Path,
+    relative_path: Option<&str>,
+) -> Result<Vec<FileEntry>, std::io::Error> {
     let target_path = match relative_path {
         Some(rel) => base_path.join(rel),
         None => base_path.to_path_buf(),
@@ -28,9 +31,7 @@ fn list_files_recursive(dir: &Path, base_path: &Path) -> Result<Vec<FileEntry>, 
         return Ok(entries);
     }
 
-    let mut dir_entries: Vec<_> = fs::read_dir(dir)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let mut dir_entries: Vec<_> = fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
 
     // Sort entries: directories first, then files, alphabetically
     dir_entries.sort_by(|a, b| {
@@ -92,7 +93,10 @@ fn list_files_recursive(dir: &Path, base_path: &Path) -> Result<Vec<FileEntry>, 
 fn has_markdown_files(entries: &[FileEntry]) -> bool {
     entries.iter().any(|e| {
         if e.is_dir {
-            e.children.as_ref().map(|c| has_markdown_files(c)).unwrap_or(false)
+            e.children
+                .as_ref()
+                .map(|c| has_markdown_files(c))
+                .unwrap_or(false)
         } else {
             true // Non-directory entries are already filtered to markdown files
         }
@@ -126,7 +130,11 @@ pub fn write_file(base_path: &Path, file_path: &str, content: &str) -> Result<()
 }
 
 /// Create a new file
-pub fn create_file(base_path: &Path, file_path: &str, content: Option<&str>) -> Result<(), std::io::Error> {
+pub fn create_file(
+    base_path: &Path,
+    file_path: &str,
+    content: Option<&str>,
+) -> Result<(), std::io::Error> {
     let full_path = safe_join(base_path, file_path)?;
 
     if full_path.exists() {
@@ -421,7 +429,10 @@ mod tests {
         // Attempt to create again
         let result = create_file(base, file_path, None);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(
+            result.unwrap_err().kind(),
+            std::io::ErrorKind::AlreadyExists
+        );
     }
 
     #[test]

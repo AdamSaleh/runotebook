@@ -157,7 +157,8 @@ impl ConfigManager {
     }
 
     pub fn worktree_path(&self, workspace: &str, branch: &str) -> PathBuf {
-        self.worktrees_path(workspace).join(sanitize_branch_name(branch))
+        self.worktrees_path(workspace)
+            .join(sanitize_branch_name(branch))
     }
 }
 
@@ -209,7 +210,10 @@ mod tests {
         assert_eq!(sanitize_branch_name("main"), "main");
         assert_eq!(sanitize_branch_name("feature/test"), "feature_test");
         assert_eq!(sanitize_branch_name("fix\\bug"), "fix_bug");
-        assert_eq!(sanitize_branch_name("feature/user/login"), "feature_user_login");
+        assert_eq!(
+            sanitize_branch_name("feature/user/login"),
+            "feature_user_login"
+        );
     }
 
     #[test]
@@ -273,8 +277,14 @@ mod tests {
     #[serial]
     fn test_verify_token() {
         let temp_dir = TempDir::new().unwrap();
-        std::env::set_var("RUNOTEPAD_CONFIG_FILE", temp_dir.path().join("config.json").to_str().unwrap());
-        std::env::set_var("RUNOTEPAD_WORKSPACE_DIR", temp_dir.path().join("ws").to_str().unwrap());
+        std::env::set_var(
+            "RUNOTEPAD_CONFIG_FILE",
+            temp_dir.path().join("config.json").to_str().unwrap(),
+        );
+        std::env::set_var(
+            "RUNOTEPAD_WORKSPACE_DIR",
+            temp_dir.path().join("ws").to_str().unwrap(),
+        );
         std::env::set_var("RUNOTEPAD_TOKEN", "test_token");
 
         let manager = ConfigManager::new().unwrap();
@@ -291,16 +301,24 @@ mod tests {
     #[serial]
     fn test_add_and_get_workspace() {
         let temp_dir = TempDir::new().unwrap();
-        std::env::set_var("RUNOTEPAD_CONFIG_FILE", temp_dir.path().join("config.json").to_str().unwrap());
-        std::env::set_var("RUNOTEPAD_WORKSPACE_DIR", temp_dir.path().join("ws").to_str().unwrap());
+        std::env::set_var(
+            "RUNOTEPAD_CONFIG_FILE",
+            temp_dir.path().join("config.json").to_str().unwrap(),
+        );
+        std::env::set_var(
+            "RUNOTEPAD_WORKSPACE_DIR",
+            temp_dir.path().join("ws").to_str().unwrap(),
+        );
 
         let manager = ConfigManager::new().unwrap();
 
-        manager.add_workspace(
-            "test-workspace".to_string(),
-            "https://github.com/test/repo.git".to_string(),
-            "main".to_string(),
-        ).unwrap();
+        manager
+            .add_workspace(
+                "test-workspace".to_string(),
+                "https://github.com/test/repo.git".to_string(),
+                "main".to_string(),
+            )
+            .unwrap();
 
         let workspace = manager.get_workspace("test-workspace").unwrap();
         assert_eq!(workspace.repo_url, "https://github.com/test/repo.git");
@@ -317,16 +335,24 @@ mod tests {
     #[serial]
     fn test_remove_workspace() {
         let temp_dir = TempDir::new().unwrap();
-        std::env::set_var("RUNOTEPAD_CONFIG_FILE", temp_dir.path().join("config.json").to_str().unwrap());
-        std::env::set_var("RUNOTEPAD_WORKSPACE_DIR", temp_dir.path().join("ws").to_str().unwrap());
+        std::env::set_var(
+            "RUNOTEPAD_CONFIG_FILE",
+            temp_dir.path().join("config.json").to_str().unwrap(),
+        );
+        std::env::set_var(
+            "RUNOTEPAD_WORKSPACE_DIR",
+            temp_dir.path().join("ws").to_str().unwrap(),
+        );
 
         let manager = ConfigManager::new().unwrap();
 
-        manager.add_workspace(
-            "test-workspace".to_string(),
-            "https://github.com/test/repo.git".to_string(),
-            "main".to_string(),
-        ).unwrap();
+        manager
+            .add_workspace(
+                "test-workspace".to_string(),
+                "https://github.com/test/repo.git".to_string(),
+                "main".to_string(),
+            )
+            .unwrap();
 
         assert!(manager.get_workspace("test-workspace").is_some());
 
@@ -347,25 +373,37 @@ mod tests {
     #[serial]
     fn test_update_workspace_base_branch() {
         let temp_dir = TempDir::new().unwrap();
-        std::env::set_var("RUNOTEPAD_CONFIG_FILE", temp_dir.path().join("config.json").to_str().unwrap());
-        std::env::set_var("RUNOTEPAD_WORKSPACE_DIR", temp_dir.path().join("ws").to_str().unwrap());
+        std::env::set_var(
+            "RUNOTEPAD_CONFIG_FILE",
+            temp_dir.path().join("config.json").to_str().unwrap(),
+        );
+        std::env::set_var(
+            "RUNOTEPAD_WORKSPACE_DIR",
+            temp_dir.path().join("ws").to_str().unwrap(),
+        );
 
         let manager = ConfigManager::new().unwrap();
 
-        manager.add_workspace(
-            "test-workspace".to_string(),
-            "https://github.com/test/repo.git".to_string(),
-            "main".to_string(),
-        ).unwrap();
+        manager
+            .add_workspace(
+                "test-workspace".to_string(),
+                "https://github.com/test/repo.git".to_string(),
+                "main".to_string(),
+            )
+            .unwrap();
 
-        let updated = manager.update_workspace_base_branch("test-workspace", "develop".to_string()).unwrap();
+        let updated = manager
+            .update_workspace_base_branch("test-workspace", "develop".to_string())
+            .unwrap();
         assert!(updated);
 
         let workspace = manager.get_workspace("test-workspace").unwrap();
         assert_eq!(workspace.base_branch, "develop");
 
         // Update non-existent workspace
-        let updated = manager.update_workspace_base_branch("nonexistent", "main".to_string()).unwrap();
+        let updated = manager
+            .update_workspace_base_branch("nonexistent", "main".to_string())
+            .unwrap();
         assert!(!updated);
 
         std::env::remove_var("RUNOTEPAD_CONFIG_FILE");
@@ -380,10 +418,7 @@ mod tests {
 
         let manager = ConfigManager::new().unwrap();
 
-        assert_eq!(
-            manager.workspace_path("test"),
-            temp_dir.path().join("test")
-        );
+        assert_eq!(manager.workspace_path("test"), temp_dir.path().join("test"));
 
         assert_eq!(
             manager.repo_path("test"),
@@ -397,7 +432,11 @@ mod tests {
 
         assert_eq!(
             manager.worktree_path("test", "feature/branch"),
-            temp_dir.path().join("test").join("worktrees").join("feature_branch")
+            temp_dir
+                .path()
+                .join("test")
+                .join("worktrees")
+                .join("feature_branch")
         );
 
         std::env::remove_var("RUNOTEPAD_WORKSPACE_DIR");
@@ -411,18 +450,23 @@ mod tests {
 
         // Set env vars BEFORE creating any manager
         std::env::set_var("RUNOTEPAD_CONFIG_FILE", config_path.to_str().unwrap());
-        std::env::set_var("RUNOTEPAD_WORKSPACE_DIR", temp_dir.path().join("ws").to_str().unwrap());
+        std::env::set_var(
+            "RUNOTEPAD_WORKSPACE_DIR",
+            temp_dir.path().join("ws").to_str().unwrap(),
+        );
         std::env::set_var("RUNOTEPAD_TOKEN", "persistent_token");
 
         // Create manager and add workspace
         {
             let manager = ConfigManager::new().unwrap();
             assert_eq!(manager.get_token(), "persistent_token");
-            manager.add_workspace(
-                "persistent".to_string(),
-                "https://example.com/repo.git".to_string(),
-                "main".to_string(),
-            ).unwrap();
+            manager
+                .add_workspace(
+                    "persistent".to_string(),
+                    "https://example.com/repo.git".to_string(),
+                    "main".to_string(),
+                )
+                .unwrap();
         }
 
         // Remove token env var to test loading from file

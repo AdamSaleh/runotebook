@@ -77,9 +77,7 @@ impl FilepathCompleter {
         let mut items = Vec::new();
 
         // Get the directory containing the markdown file
-        let md_dir = Path::new(markdown_path)
-            .parent()
-            .unwrap_or(Path::new(""));
+        let md_dir = Path::new(markdown_path).parent().unwrap_or(Path::new(""));
 
         // Parse prefix to determine search directory and filter
         let (search_rel, filter) = Self::parse_prefix(prefix);
@@ -113,12 +111,7 @@ impl FilepathCompleter {
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
 
             // Build the completion insert text
-            let insert_text = format!(
-                "{}{}{}",
-                search_rel,
-                name,
-                if is_dir { "/" } else { "" }
-            );
+            let insert_text = format!("{}{}{}", search_rel, name, if is_dir { "/" } else { "" });
 
             items.push(CompletionItem {
                 label: name,
@@ -234,7 +227,11 @@ impl ShellCompleter {
         };
 
         // Build command
-        let script = format!("compgen {} -- '{}'", compgen_opts, prefix.replace('\'', "'\\''"));
+        let script = format!(
+            "compgen {} -- '{}'",
+            compgen_opts,
+            prefix.replace('\'', "'\\''")
+        );
         let mut cmd = Command::new("bash");
         cmd.args(["-c", &script]);
 
@@ -351,8 +348,8 @@ impl AtuinCompleter {
 // LSP Handler
 // =============================================================================
 
-use std::sync::Arc;
 use crate::config::ConfigManager;
+use std::sync::Arc;
 
 pub struct LspHandler {
     config: Arc<ConfigManager>,
