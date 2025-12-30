@@ -27,12 +27,75 @@ function isShellLanguage(lang: string): boolean {
   return lang === 'sh' || lang === 'bash' || lang === 'shell';
 }
 
+/**
+ * Get the content of a named code block from the current editor
+ */
+function getNamedBlockContent(blockName: string): string | null {
+  if (!currentEditor) {
+    return null;
+  }
+
+  const state = currentEditor.state;
+  const tree = syntaxTree(state);
+  let content: string | null = null;
+
+  tree.iterate({
+    enter(node) {
+      if (content !== null) return false; // Already found
+
+      if (node.name === 'FencedCode') {
+        const codeInfoNode = node.node.getChild('CodeInfo');
+        if (!codeInfoNode) return;
+
+        const infoText = state.doc.sliceString(codeInfoNode.from, codeInfoNode.to);
+        const parts = infoText.trim().split(/\s+/);
+
+        // Look for name= annotation
+        for (let i = 1; i < parts.length; i++) {
+          const match = parts[i].match(/^name=(.+)$/);
+          if (match && match[1] === blockName) {
+            const codeTextNode = node.node.getChild('CodeText');
+            if (codeTextNode) {
+              content = state.doc.sliceString(codeTextNode.from, codeTextNode.to).trim();
+              return false; // Stop iteration
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return content;
+}
+
+/**
+ * Build environment variable export commands for envin blocks
+ */
+function buildEnvExports(envInBlocks: string[]): string {
+  const exports: string[] = [];
+
+  for (const blockName of envInBlocks) {
+    const content = getNamedBlockContent(blockName);
+    if (content !== null) {
+      // Escape single quotes in the content by replacing ' with '\''
+      const escaped = content.replace(/'/g, "'\\''");
+      exports.push(`export ${blockName}='${escaped}'`);
+      logger.debug(`Injecting env var ${blockName} (${content.length} chars)`);
+    } else {
+      logger.warn(`envin block not found: ${blockName}`);
+    }
+  }
+
+  return exports.length > 0 ? exports.join('; ') + '; ' : '';
+}
+
 // GutterMarker that renders a run button
 class RunButtonMarker extends GutterMarker {
   constructor(
     private code: string,
     private sessionName?: string,
-    private outputBlock?: string
+    private outputBlock?: string,
+    private envInBlocks?: string[]
   ) {
     super();
   }
@@ -55,26 +118,36 @@ class RunButtonMarker extends GutterMarker {
 
   private runCode(): void {
     const sessionName = this.sessionName || getDefaultSessionName();
-    logger.info(`Running code in session: ${sessionName}${this.outputBlock ? ` (capturing to: ${this.outputBlock})` : ''}`);
-    logger.debug('Code to execute:', this.code);
+    const envInfo = this.envInBlocks?.length ? ` (envin: ${this.envInBlocks.join(',')})` : '';
+    logger.info(`Running code in session: ${sessionName}${this.outputBlock ? ` (capturing to: ${this.outputBlock})` : ''}${envInfo}`);
+
+    // Build the code with env exports prepended
+    let codeToRun = this.code;
+    if (this.envInBlocks && this.envInBlocks.length > 0) {
+      const envExports = buildEnvExports(this.envInBlocks);
+      codeToRun = envExports + this.code;
+    }
+
+    logger.debug('Code to execute:', codeToRun);
 
     // Check for existing named session, reuse or create new
     const existingId = terminalManager.getNamedSession(sessionName);
     if (existingId) {
       logger.debug(`Reusing session "${sessionName}": ${existingId}`);
-      terminalManager.sendInput(existingId, this.code + '\n', this.outputBlock);
+      terminalManager.sendInput(existingId, codeToRun + '\n', this.outputBlock);
       terminalManager.scrollSessionIntoView(existingId);
       return;
     }
 
-    terminalManager.createTerminal(this.code, sessionName, this.outputBlock);
+    terminalManager.createTerminal(codeToRun, sessionName, this.outputBlock);
   }
 
   eq(other: GutterMarker): boolean {
     return other instanceof RunButtonMarker &&
       other.code === this.code &&
       other.sessionName === this.sessionName &&
-      other.outputBlock === this.outputBlock;
+      other.outputBlock === this.outputBlock &&
+      JSON.stringify(other.envInBlocks) === JSON.stringify(this.envInBlocks);
   }
 }
 
@@ -98,9 +171,10 @@ function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
 
         if (!isShellLanguage(lang)) return;
 
-        // Parse session name and output block from info string
+        // Parse session name, output block, and envin from info string
         let sessionName: string | undefined;
         let outputBlock: string | undefined;
+        let envInBlocks: string[] | undefined;
         for (let i = 1; i < parts.length; i++) {
           const sessionMatch = parts[i].match(/^session=(.+)$/);
           if (sessionMatch) {
@@ -110,6 +184,12 @@ function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
           const outMatch = parts[i].match(/^out=(.+)$/);
           if (outMatch) {
             outputBlock = outMatch[1];
+            continue;
+          }
+          const envinMatch = parts[i].match(/^envin=(.+)$/);
+          if (envinMatch) {
+            // Parse comma-separated block names
+            envInBlocks = envinMatch[1].split(',').map(s => s.trim()).filter(s => s.length > 0);
             continue;
           }
         }
@@ -125,7 +205,7 @@ function computeMarkers(state: EditorState): RangeSet<GutterMarker> {
 
         // Add marker at the start of the fenced code block
         const line = state.doc.lineAt(node.from);
-        markers.push(new RunButtonMarker(code, sessionName, outputBlock).range(line.from));
+        markers.push(new RunButtonMarker(code, sessionName, outputBlock, envInBlocks).range(line.from));
       }
     }
   });
